@@ -92,6 +92,15 @@ class DynamicOP(ABC):
 
         return parsed_mutable_cfgs
 
+    def check_if_mutables_fixed(self) -> None:
+
+        def check_fixed(mutable: Optional[BaseMutable]) -> None:
+            if mutable is not None and not mutable.is_fixed:
+                raise RuntimeError(f'Mutable {type(mutable)} is not fixed.')
+
+        for mutable_key in self.accepted_mutable_keys:
+            check_fixed(getattr(self, f'{mutable_key}_mutable'))
+
 
 class ChannelDynamicOP(DynamicOP):
     """Base class for dynamic OP with mutable channels.
