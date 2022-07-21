@@ -216,7 +216,7 @@ class DynamicLinear(nn.Linear, ChannelDynamicOP):
         return self
 
 
-class DynamicBatchNorm(_BatchNorm, ChannelDynamicOP):
+class _DynamicBatchNorm(_BatchNorm, ChannelDynamicOP):
     """Applies Batch Normalization over an input according to the
     `mutable_num_features` dynamically.
 
@@ -255,9 +255,35 @@ class DynamicBatchNorm(_BatchNorm, ChannelDynamicOP):
         """Mutable `num_features`."""
         return self.num_features_mutable
 
+    def _get_dynamic_params(
+        self
+    ) -> Tuple[Optional[Tensor], Optional[Tensor], Optional[Tensor],
+               Optional[Tensor]]:
+        if self.affine:
+            out_mask = self.num_features_mutable.current_mask.to(
+                self.weight.device)
+            weight = self.weight[out_mask]
+            bias = self.bias[out_mask]
+        else:
+            weight, bias = self.weight, self.bias
+
+        if self.track_running_stats:
+            out_mask = self.num_features_mutable.current_mask.to(
+                self.running_mean.device)
+            running_mean = self.running_mean[out_mask] \
+                if not self.training or self.track_running_stats else None
+            running_var = self.running_var[out_mask] \
+                if not self.training or self.track_running_stats else None
+        else:
+            running_mean, running_var = self.running_mean, self.running_var
+
+        return running_mean, running_var, weight, bias
+
     def forward(self, input: Tensor) -> Tensor:
         """Slice the parameters according to `mutable_num_features`, and
         forward."""
+        self._check_input_dim(input)
+
         if self.momentum is None:
             exponential_average_factor = 0.0
         else:
@@ -279,28 +305,11 @@ class DynamicBatchNorm(_BatchNorm, ChannelDynamicOP):
             bn_training = (self.running_mean is None) and (self.running_var is
                                                            None)
 
-        if self.affine:
-            out_mask = self.num_features_mutable.current_mask.to(
-                self.weight.device)
-            weight = self.weight[out_mask]
-            bias = self.bias[out_mask]
-        else:
-            weight, bias = self.weight, self.bias
-
-        if self.track_running_stats:
-            out_mask = self.num_features_mutable.current_mask.to(
-                self.running_mean.device)
-            running_mean = self.running_mean[out_mask] \
-                if not self.training or self.track_running_stats else None
-            running_var = self.running_var[out_mask] \
-                if not self.training or self.track_running_stats else None
-        else:
-            running_mean, running_var = self.running_mean, self.running_var
+        running_mean, running_var, weight, bias = self._get_dynamic_params()
 
         return F.batch_norm(input, running_mean, running_var, weight, bias,
                             bn_training, exponential_average_factor, self.eps)
 
-    # TODO
     def to_static_op(self) -> nn.Module:
         return self
 
