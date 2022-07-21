@@ -8,6 +8,8 @@ from mmrazor.registry import MODELS
 from ..derived_mutable import DerivedMutable
 from .mutable_channel import MutableChannel
 
+CANDIDATE_CHOICE_TYPE = List[Union[float, int]]
+
 
 @MODELS.register_module()
 class OneShotMutableChannel(MutableChannel[int, Dict]):
@@ -44,28 +46,33 @@ class OneShotMutableChannel(MutableChannel[int, Dict]):
             num_channels=num_channels, init_cfg=init_cfg)
 
         self._current_choice = num_channels
-        assert len(candidate_choices) > 0, \
-            f'Number of candidate choices must be greater than 0, ' \
-            f'but got: {len(candidate_choices)}'
-        self._candidate_choices = candidate_choices
-        assert candidate_mode in ['ratio', 'number']
+
+        assert (candidate_mode is None and candidate_choices is None) or (
+            candidate_mode is not None and candidate_choices is not None)
+        if candidate_mode is not None:
+            self._check_candidate_mode(candidate_mode)
         self._candidate_mode = candidate_mode
+        if candidate_choices is not None:
+            self._check_candidate_choices(candidate_choices)
+        self._candidate_choices = candidate_choices
 
-        self._check_candidate_choices()
+    def _check_candidate_mode(self, candidate_mode: str) -> None:
+        assert candidate_mode in ['ratio', 'number']
 
-    def _check_candidate_choices(self):
+    def _check_candidate_choices(
+            self, candidate_choices: CANDIDATE_CHOICE_TYPE) -> None:
         """Check if the input `candidate_choices` is valid."""
         if self._candidate_mode == 'number':
             assert all([num > 0 and num <= self.num_channels
-                        for num in self._candidate_choices]), \
+                        for num in candidate_choices]), \
                 f'The candidate channel numbers should be in ' \
                 f'range(0, {self.num_channels}].'
             assert all([isinstance(num, int)
-                        for num in self._candidate_choices]), \
+                        for num in candidate_choices]), \
                 'Type of `candidate_choices` should be int.'
         else:
             assert all([
-                ratio > 0 and ratio <= 1 for ratio in self._candidate_choices
+                ratio > 0 and ratio <= 1 for ratio in candidate_choices
             ]), 'The candidate ratio should be in range(0, 1].'
 
     def sample_choice(self) -> int:
@@ -106,13 +113,30 @@ class OneShotMutableChannel(MutableChannel[int, Dict]):
     def current_choice(self, choice: int):
         """Set the current choice of the mutable."""
         assert choice in self.choices
+        assert len(self.concat_parent_mutables) == 0
+
         self._current_choice = choice
+
+    def set_candidate_choices(
+            self, candidate_mode: str,
+            candidate_choices: CANDIDATE_CHOICE_TYPE) -> None:
+        assert self._candidate_choices is None, \
+            '`candidate_choices` has already been set'
+        self._check_candidate_mode(candidate_mode)
+        self._candidate_mode = candidate_mode
+        self._check_candidate_choices(candidate_choices)
+        self._candidate_choices = candidate_choices
 
     @property
     def choices(self) -> List:
         """list: all choices. """
+        assert self._candidate_choices is not None, \
+            '`candidate_choices` must be set before access'
         if self._candidate_mode == 'number':
+            self._candidate_choices: List[int]
             return self._candidate_choices
+
+        self._candidate_choices: List[float]
         candidate_choices = [
             round(ratio * self.num_channels)
             for ratio in self._candidate_choices
