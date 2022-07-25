@@ -12,7 +12,7 @@ CANDIDATE_CHOICE_TYPE = List[Union[float, int]]
 
 
 @MODELS.register_module()
-class OneShotMutableChannel(MutableChannel[int, Dict]):
+class OneShotMutableChannel(MutableChannel[int]):
     """A type of ``MUTABLES`` for single path supernet such as AutoSlim. In
     single path supernet, each module only has one choice invoked at the same
     time. A path is obtained by sampling all the available choices. It is the
@@ -127,16 +127,16 @@ class OneShotMutableChannel(MutableChannel[int, Dict]):
         self._check_candidate_choices(candidate_choices)
         self._candidate_choices = candidate_choices
 
+    # TODO
+    # should return List[int], but this will make mypy complain
     @property
     def choices(self) -> List:
         """list: all choices. """
         assert self._candidate_choices is not None, \
             '`candidate_choices` must be set before access'
         if self._candidate_mode == 'number':
-            self._candidate_choices: List[int]
             return self._candidate_choices
 
-        self._candidate_choices: List[float]
         candidate_choices = [
             round(ratio * self.num_channels)
             for ratio in self._candidate_choices
