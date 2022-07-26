@@ -7,7 +7,7 @@ from torch import nn
 
 from mmrazor.models.mutables.base_mutable import BaseMutable
 
-MUTABLE_CFG_TYPE = Dict[str, Any]
+MUTABLE_CFG_TYPE = Union[Dict[str, Any], BaseMutable]
 MUTABLE_CFGS_TYPE = Dict[str, MUTABLE_CFG_TYPE]
 
 
@@ -83,8 +83,14 @@ class DynamicOP(ABC):
 
         for mutable_key in mutable_cfgs.keys():
             if mutable_key in cls.accepted_mutable_keys:
-                parsed_mutable_cfgs[mutable_key] = copy.deepcopy(
-                    mutable_cfgs[mutable_key])
+                mutable = mutable_cfgs[mutable_key]
+                if isinstance(mutable, dict):
+                    mutable = copy.deepcopy(mutable)
+                elif not isinstance(mutable, BaseMutable):
+                    raise ValueError('Type of value in `mutable_cfgs` must be'
+                                     'dict or `BaseMutable`, '
+                                     f'but got: {type(mutable)}')
+                parsed_mutable_cfgs[mutable_key] = mutable
         if len(parsed_mutable_cfgs) == 0:
             raise ValueError(
                 f'Expected mutable keys: {cls.accepted_mutable_keys}, '
