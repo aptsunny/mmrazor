@@ -220,7 +220,8 @@ class DerivedMutable(BaseMutable[CHOICE_TYPE, CHOICE_TYPE],
                  mask_fn: Optional[Callable] = None,
                  source_mutables: Optional[Iterable[BaseMutable]] = None,
                  alias: Optional[str] = None,
-                 init_cfg: Optional[Dict] = None) -> None:
+                 init_cfg: Optional[Dict] = None,
+                 **kwargs) -> None:
         super().__init__(alias, init_cfg)
 
         self.choice_fn = choice_fn

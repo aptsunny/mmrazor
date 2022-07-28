@@ -113,5 +113,6 @@ class MutableChannel(BaseMutable[CHOICE_TYPE, CHOSEN_TYPE],
         repr_str = self.__class__.__name__
         repr_str += f'(name={self.name}, '
         repr_str += f'num_channels={self.num_channels}, '
+        repr_str += f'current_choice={self.current_choice}, '
         repr_str += f'concat_mutable_name={concat_mutable_name})'
         return repr_str
