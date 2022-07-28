@@ -7,6 +7,7 @@ from .dynamic_linear import DynamicLinear
 from .dynamic_norm import (DynamicBatchNorm1d, DynamicBatchNorm2d,
                            DynamicBatchNorm3d, DynamicGroupNorm,
                            DynamicInstanceNorm)
+from .head import DynamicLinearClsHead
 from .slimmable_dynamic_ops import SwitchableBatchNorm2d
 
 __all__ = [

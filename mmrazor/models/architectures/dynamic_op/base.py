@@ -82,8 +82,8 @@ class DynamicOP(ABC):
             if mutable is not None and not mutable.is_fixed:
                 raise RuntimeError(f'Mutable {type(mutable)} is not fixed.')
 
-        for mutable_key in self.accepted_mutable_keys:
-            check_fixed(getattr(self, f'{mutable_key}_mutable'))
+        for mutable in self.accpeted_mutables:
+            check_fixed(getattr(self, f'{mutable}'))
 
     @staticmethod
     def get_current_choice(mutable: BaseMutable) -> Any:
