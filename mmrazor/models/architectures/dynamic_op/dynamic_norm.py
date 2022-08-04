@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from mmcv.cnn.bricks.registry import NORM_LAYERS
 from torch import Tensor
-from torch.nn.modules import GroupNorm
+from torch.nn.modules import GroupNorm, LayerNorm
 from torch.nn.modules.batchnorm import _BatchNorm
 from torch.nn.modules.instancenorm import _InstanceNorm
 
@@ -248,3 +248,42 @@ class DynamicGroupNorm(GroupNorm, MutableManageMixIn):
             weight, bias = self.weight, self.bias
 
         return F.group_norm(input, self.num_groups, weight, bias, self.eps)
+
+
+class DynamicLayerNorm(LayerNorm, MutableManageMixIn):
+    """Applies Layer Normalization over a mini-batch of inputs according to the
+    `mutable_num_channels` dynamically.
+
+    Args:
+        num_channels_cfg (Dict): Config related to `num_channels`.
+    """
+
+    def __init__(self, num_channels_cfg, *args, **kwargs):
+        super(DynamicLayerNorm, self).__init__(*args, **kwargs)
+
+        num_channels_cfg_ = copy.deepcopy(num_channels_cfg)
+        num_channels_cfg_.update(dict(num_channels=self.num_channels))
+        self.mutable_num_channels = MODELS.build(num_channels_cfg_)
+
+    @property
+    def mutable_in(self):
+        """Mutable `num_channels`."""
+        return self.mutable_num_channels
+
+    @property
+    def mutable_out(self):
+        """Mutable `num_channels`."""
+        return self.mutable_num_channels
+
+    def forward(self, input: Tensor) -> Tensor:
+        """Slice the parameters according to `mutable_num_channels`, and
+        forward."""
+        if self.affine:
+            out_mask = self.mutable_num_channels.current_mask.to(
+                self.weight.device)
+            weight = self.weight[out_mask]
+            bias = self.bias[out_mask]
+        else:
+            weight, bias = self.weight, self.bias
+
+        return F.layer_norm(input, self.num_groups, weight, bias, self.eps)
