@@ -12,7 +12,7 @@ def _dynamic_to_static(model: nn.Module) -> None:
     # Avoid circular import
     from mmrazor.models.architectures.dynamic_op.bricks import DynamicMixin
 
-    def traverse_children(module: nn.Module) -> None:
+    def traverse_children(module: nn.Module, prefix: str = '') -> None:
         for name, child in module.named_children():
             if isinstance(child, DynamicMixin):
                 setattr(module, name, child.to_static_op())
