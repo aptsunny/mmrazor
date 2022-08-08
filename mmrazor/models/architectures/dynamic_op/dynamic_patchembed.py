@@ -115,7 +115,7 @@ class DynamicPatchembed(Patchembed, ChannelDynamicOP):
 
     def to_static_op(self) -> nn.Module:
         self.check_if_mutables_fixed()
-        assert self.mutable_embed_dim is not None 
+        assert self.mutable_embed_dim is not None
 
         weight, bias = self._get_dynamic_params()
         static_patch_embed = Patchembed(
