@@ -1,27 +1,13 @@
 # Copyright (c) OpenMMLab. All rights reserved.
+from typing import Optional, Tuple
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional, Tuple
+from torch import Tensor
 
-from .base import ChannelDynamicOP
 from mmrazor.models.mutables.base_mutable import BaseMutable
-
-
-class QKV(nn.Linear):
-    def __init__(self,
-                 in_features,
-                 out_features,
-                 bias=True):
-        super().__init__(in_features, out_features, bias=bias)
-        # super_in_dim and super_out_dim indicate the largest network!
-        self.in_features = in_features
-        self.out_features = out_features
-        
-    def forward(self, x):
-        sample_weight = self.weight[:, :self.in_features]
-        sample_weight = torch.cat([sample_weight[i:self.out_features:3, :] for i in range(3)], dim=0)
-        return F.linear(x, sample_weight, self.bias[:self.out_features])
+from .base import ChannelDynamicOP
 
 
 class DynamicQKV(nn.Linear, ChannelDynamicOP):
@@ -36,51 +22,63 @@ class DynamicQKV(nn.Linear, ChannelDynamicOP):
 
     def __init__(self, in_features, num_heads, unit=64, bias=True, key=None):
         # Must initionalize first for multiple inheritance.
-       
+
         self.mutable_num_heads: Optional[BaseMutable] = None
         self.mutable_in_features: Optional[BaseMutable] = None
-        
-        max_in_features = self.get_value(in_features, kind='max')
-        max_heads = self.get_value(num_heads, kind='max')
-        
-        max_out_features = max_heads * unit * 3
-        
-        super(QkvSlice, self).__init__(max_in_features, max_out_features, bias)
+        out_features = num_heads * unit * 3
+        super().__init__(in_features, out_features, bias)
+
         self.in_features = in_features
         self.num_heads = num_heads
         self.unit = unit
 
     def mutate_num_heads(self, mutable_num_heads):
-        ...
+        self.mutable_num_heads = mutable_num_heads
 
     @property
     def mutable_in(self) -> Optional[BaseMutable]:
-        return self.mutable_embed_dim 
-    
+        return self.mutable_in_features
+
     @property
     def mutable_out(self) -> Optional[BaseMutable]:
-        return self.mutable_embed_dim
+        return self.mutable_num_heads * self.unit * 3
 
-    def forward_inner(self, x):
-        in_features = self.get_value(self.in_features)
-        out_features = self.get_value(self.num_heads) * self.unit * 3
-        sample_weight = self.weight[:, :in_features]
-        sample_weight = torch.cat(
-            [sample_weight[i:out_features:3, :] for i in range(3)], dim=0)
-        bias = self.bias[:out_features]
-        return F.linear(x, sample_weight, bias)
+    def _get_dynamic_params(self) -> Tuple[Tensor, Optional[Tensor]]:
+        if self.mutable_in_features is None and self.mutable_num_heads is None:
+            return self.weight, self.bias
 
-    # def export(self, **kwargs):
-    #     """Export LinearSlice to nn.Linear."""
-    #     in_features = kwargs.get('in_features',
-    #                              self.get_value(self.in_features))
-    #     num_heads = kwargs.get('num_heads', self.get_value(self.num_heads))
-    #     out_features = self.unit * num_heads * 3
-    #     sample_weight = self.weight[:out_features, :in_features]
-    #     sample_weight = sample_weight.data
-    #     export_module = QKV_Super(
-    #         in_features, out_features, bias=(self.bias is not None))
-    #     export_module.weight.data.copy_(sample_weight)
-    #     if self.bias is not None:
-    #         export_module.bias.data.copy_(self.bias.data[:out_features])
-    #     return export_module
+        if self.mutable_in_features is not None:
+            in_features = self.mutable_in_features.current_choice.to(
+                self.weight.device)
+        else:
+            in_features = self.in_features
+
+        if self.mutable_num_heads is not None:
+            out_features = self.mutable_num_heads.current_choice.repeat(3).to(
+                self.weight.device)
+        else:
+            out_features = self.num_heads * self.unit * 3
+
+        weight = self.weight[:, :in_features]
+        weight = torch.cat([weight[i:out_features:3, :] for i in range(3)],
+                           dim=0)
+        bias = self.bias[:out_features] if self.bias is not None else None
+        return weight, bias
+
+    def forward(self, input: Tensor) -> Tensor:
+        """Slice the parameters according to `mutable_in_features` and
+        `mutable_out_features`, and forward."""
+        weight, bias = self._get_dynamic_params()
+
+        return F.linear(input, weight, bias)
+
+    def to_static_op(self) -> nn.Module:
+        self.check_if_mutables_fixed()
+        weight, bias = self._get_dynamic_params()
+        static_linear = nn.Linear(
+            in_features=weight.size(1),
+            out_features=weight.size(0),
+            bias=True if bias is not None else False)
+        static_linear.weight = nn.Parameter(weight)
+        static_linear.bias = nn.Parameter(bias)
+        return static_linear
