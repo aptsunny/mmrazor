@@ -20,21 +20,21 @@ class RelativePosition2D(nn.Module):
     methods dedicated to 2D images.
 
     Args:
-        num_units ([int]): embedding dims of relative position.
+        head_dims ([int]): embedding dims of relative position.
         max_relative_position ([int]): The max relative position distance.
     """
 
-    def __init__(self, num_units, max_relative_position=14):
+    def __init__(self, head_dims, max_relative_position=14):
         super().__init__()
 
-        self.num_units = num_units
+        self.head_dims = head_dims
         self.max_relative_position = max_relative_position
         # The first element in embeddings_table_v is the vertical embedding
         # for the class
         self.embeddings_table_v = nn.Parameter(
-            torch.randn(max_relative_position * 2 + 2, num_units))
+            torch.randn(max_relative_position * 2 + 2, head_dims))
         self.embeddings_table_h = nn.Parameter(
-            torch.randn(max_relative_position * 2 + 2, num_units))
+            torch.randn(max_relative_position * 2 + 2, head_dims))
 
         trunc_normal_(self.embeddings_table_v, std=.02)
         trunc_normal_(self.embeddings_table_h, std=.02)
@@ -84,35 +84,35 @@ class DynamicRelativePosition2D(RelativePosition2D, ChannelDynamicOP):
     """Searchable RelativePosition module.
 
     Args:
-        heads_dim (int/Int): Parallel attention heads.
-        num_units ([int/Int]): embedding dims of relative position.
+        head_dims (int/Int): Parallel attention heads.
+        head_dims ([int/Int]): embedding dims of relative position.
         max_relative_position ([int]): The max relative position distance.
     """
-    accpeted_mutables = {'mutable_heads_dim'}
+    accpeted_mutables = {'mutable_head_dims'}
 
-    def __init__(self, num_units=14, max_relative_position=14):
+    def __init__(self, head_dims=14, max_relative_position=14):
         super().__init__(
-            num_units=num_units, max_relative_position=max_relative_position)
+            head_dims=head_dims, max_relative_position=max_relative_position)
 
-        self.mutable_heads_dim: Optional[BaseMutable] = None
+        self.mutable_head_dims: Optional[BaseMutable] = None
 
-    def mutate_heads_dim(self, mutable_heads_dim):
-        self.mutable_heads_dim = mutable_heads_dim
+    def mutate_head_dims(self, mutable_head_dims):
+        self.mutable_head_dims = mutable_head_dims
 
     @property
     def mutable_in(self) -> Optional[BaseMutable]:
-        return self.mutable_heads_dim
+        return self.mutable_head_dims
 
     @property
     def mutable_out(self) -> Optional[BaseMutable]:
-        return self.mutable_heads_dim
+        return self.mutable_head_dims
 
     def _get_dynamic_params(self, length_q,
                             length_k) -> Tuple[Tensor, Optional[Tensor]]:
-        if self.mutable_heads_dim is None:
-            self.current_head_dim = self.num_units
+        if self.mutable_head_dims is None:
+            self.current_head_dim = self.head_dims
         else:
-            self.current_head_dim = self.mutable_heads_dim.current_choice
+            self.current_head_dim = self.mutable_head_dims.current_choice
 
         self.sample_eb_table_h = self.embeddings_table_h[:, :self.
                                                          current_head_dim]
@@ -155,7 +155,7 @@ class DynamicRelativePosition2D(RelativePosition2D, ChannelDynamicOP):
 
         return embeddings
 
-    def forward(self, x, length_q, length_k):
+    def forward(self, length_q, length_k):
         return self._get_dynamic_params(length_q, length_k)
 
     def to_static_op(self) -> nn.Module:
@@ -163,8 +163,10 @@ class DynamicRelativePosition2D(RelativePosition2D, ChannelDynamicOP):
 
         static_relative_position = RelativePosition2D(self.current_head_dim)
         static_relative_position.embeddings_table_v = \
-            nn.Parameter(self.embeddings_table_v[:, :self.current_head_dim])
+            nn.Parameter(
+                self.embeddings_table_v[:, :self.current_head_dim].clone())
         static_relative_position.embeddings_table_h = \
-            nn.Parameter(self.embeddings_table_h[:, :self.current_head_dim])
+            nn.Parameter(
+                self.embeddings_table_h[:, :self.current_head_dim].clone())
 
         return static_relative_position

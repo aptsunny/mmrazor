@@ -52,7 +52,7 @@ class DynamicPatchEmbed(PatchEmbed, ChannelDynamicOP):
 
         weight = self.projection.weight[:choice, ...]
         bias = self.projection.bias[:
-                                    choice] if self.projection.bias is not None else None
+                                    choice] if self.projection.bias is not None else None  # noqa: E501
 
         return weight, bias
 
@@ -79,7 +79,7 @@ class DynamicPatchEmbed(PatchEmbed, ChannelDynamicOP):
             embed_dims=sum(self.mutable_embed_dim.current_choice.item()),
             conv_cfg=self.conv_cfg)
 
-        static_patch_embed.projection.weight = nn.Parameter(weight)
-        static_patch_embed.projection.bias = nn.Parameter(bias)
+        static_patch_embed.projection.weight = nn.Parameter(weight.clone())
+        static_patch_embed.projection.bias = nn.Parameter(bias.clone())
 
         return static_patch_embed
