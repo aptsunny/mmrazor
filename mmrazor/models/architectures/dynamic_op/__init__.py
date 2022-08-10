@@ -8,6 +8,8 @@ from .dynamic_linear import DynamicLinear
 from .dynamic_norm import (DynamicBatchNorm1d, DynamicBatchNorm2d,
                            DynamicBatchNorm3d, DynamicGroupNorm,
                            DynamicInstanceNorm)
+from .dynamic_relative_position import (DynamicRelativePosition2D,
+                                        RelativePosition2D)
 from .head import DynamicLinearClsHead
 from .slimmable_dynamic_ops import SwitchableBatchNorm2d
 

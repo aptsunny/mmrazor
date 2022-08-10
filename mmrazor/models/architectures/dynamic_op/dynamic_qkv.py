@@ -1,4 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
+from cmath import inf
 from typing import Optional, Tuple
 
 import torch
@@ -8,6 +9,90 @@ from torch import Tensor
 
 from mmrazor.models.mutables.base_mutable import BaseMutable
 from .base import ChannelDynamicOP
+
+
+class DynamicQKV(ChannelDynamicOP):
+    """_summary_
+
+        Args:
+            in_features (_type_): _description_
+            num_heads (_type_): _description_
+            unit (int, optional): Base dimension of qkv. Defaults to 64.
+            bias (bool, optional): _description_. Defaults to True.
+        """
+    accpeted_mutables = {'mutable_num_heads', 'mutable_in_features'}
+
+    # TODO check bias
+    def __init__(self, in_features, num_heads, unit=64, bias=True) -> None:
+
+        self.in_features = in_features
+        self.num_heads = num_heads
+        self.unit = 64
+
+        self.mutable_num_heads: Optional[BaseMutable] = None
+        self.mutable_in_features: Optional[BaseMutable] = None
+
+        self.w_qs = nn.Linear(
+            in_features=in_features, out_features=num_heads * unit, bias=bias)
+        self.w_ks = nn.Linear(
+            in_features=in_features, out_features=num_heads * unit, bias=bias)
+        self.w_vs = nn.Linear(
+            in_features=in_features, out_features=num_heads * unit, bias=bias)
+
+    def mutate_num_heads(self, mutable_num_heads) -> None:
+        self.mutable_num_heads = mutable_num_heads
+
+    def mutate_in_features(self, mutable_in_features) -> None:
+        self.mutable_in_features = mutable_in_features
+
+    @property
+    def mutable_in(self) -> Optional[BaseMutable]:
+        return self.mutable_in_features
+
+    @property
+    def mutable_out(self) -> Optional[BaseMutable]:
+        return self.mutable_num_heads.derive_expand_mutable(self.unit)
+        # return self.mutable_num_heads.current_choice * self.unit
+
+    def _get_dynamic_params(self,
+                            w: nn.Linear) -> Tuple[Tensor, Optional[Tensor]]:
+        if self.mutable_in_features is None and self.mutable_num_heads is None:
+            # normal qkv without mutable variables
+            return w.weight, w.bias
+
+        if self.mutable_in_features is not None:
+            in_features = self.mutable_in_features.current_choice.to(
+                self.weight.device)
+        else:
+            in_features = self.in_features
+
+        if self.num_heads is not None:
+            out_features = self.mutable_num_heads.current_choice.to(
+                self.weight.device)
+        else:
+            out_features = self.num_heads * self.unit
+
+        weight = self.weight[:out_features][:, in_features]
+        bias = self.bias[:out_features] if self.bias is not None else None
+
+        return weight, bias
+
+    def forward(self, x: Tensor) -> Tensor:
+        bs, lens = x.shape(0), x.shape1(1)
+        current_num_heads = self.mutable_num_heads.current_choice.to(
+            self.weight.device)
+
+        q_w, q_b = self._get_dynamic_params(self.w_qs)
+        k_w, k_b = self._get_dynamic_params(self.k_qs)
+        v_w, v_b = self._get_dynamic_params(self.v_qs)
+
+        q = F.linear(x, q_w, q_b).view(bs, lens, current_num_heads, self.unit)
+        k = F.linear(x, k_w, k_b).view(bs, lens, current_num_heads, self.unit)
+        v = F.linear(x, v_w, v_b).view(bs, lens, current_num_heads, self.unit)
+
+        q, k, v = q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2)
+
+        return q, k, v
 
 
 class DynamicQKV(nn.Linear, ChannelDynamicOP):
