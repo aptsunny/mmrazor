@@ -146,23 +146,42 @@ class DynamicMultiheadAttention(MultiheadAttention, DynamicOP):
             self.rel_pos_embed_v = DynamicRelativePosition2D(
                 self.num_heads, self.max_relative_position)
 
-    def _get_dynamic_params(self,
-                            w: nn.Linear) -> Tuple[Tensor, Optional[Tensor]]:
-        if self.mutable_in_features is None and self.mutable_num_heads is None:
-            # normal qkv without mutable variables
+    def _get_dynamic_proj_params(
+            self, w: nn.Linear) -> Tuple[Tensor, Optional[Tensor]]:
+        # TODO support mask later
+        if self.mutable_embed_dims is None:
             return w.weight, w.bias
 
-        if self.mutable_in_features is not None:
-            in_features = self.mutable_in_features.current_choice.to(
+        if self.mutable_embed_dims is not None:
+            in_features = self.mutable_embed_dims.current_choice.to(
                 self.weight.device)
         else:
-            in_features = self.in_features
+            in_features = self.embed_dims
 
-        if self.num_heads is not None:
-            out_features = self.mutable_num_heads.current_choice.to(
+        out_features = in_features
+
+        weight = self.weight[:out_features][:, in_features]
+        bias = self.bias[:out_features] if self.bias is not None else None
+
+        return weight, bias
+
+    def _get_dynamic_qkv_params(
+            self, w: nn.Linear) -> Tuple[Tensor, Optional[Tensor]]:
+        # TODO support mask later
+        if self.mutable_num_heads is None and self.mutable_embed_dims is None:
+            return w.weight, w.bias
+
+        if self.mutable_embed_dims is not None:
+            in_features = self.mutable_embed_dims.current_choice.to(
                 self.weight.device)
         else:
-            out_features = self.num_heads * self.unit
+            in_features = self.embed_dims
+
+        if self.mutable_num_heads is not None:
+            out_features = self.mutable_num_heads * self.mutable_head_dims.to(
+                self.weight.device)
+        else:
+            out_features = self.num_heads * self.head_dims
 
         weight = self.weight[:out_features][:, in_features]
         bias = self.bias[:out_features] if self.bias is not None else None
@@ -212,11 +231,11 @@ class DynamicMultiheadAttention(MultiheadAttention, DynamicOP):
         embed_dims = self.mutable_embed_dims.current_choice
         num_heads = self.mutable_num_heads.current_choice
 
-        q_w, q_b = self._get_dynamic_params(self.w_qs)
-        k_w, k_b = self._get_dynamic_params(self.k_qs)
-        v_w, v_b = self._get_dynamic_params(self.v_qs)
+        q_w, q_b = self._get_dynamic_qkv_params(self.w_qs)
+        k_w, k_b = self._get_dynamic_qkv_params(self.k_qs)
+        v_w, v_b = self._get_dynamic_qkv_params(self.v_qs)
 
-        proj_w, proj_b = self._get_dynamic_params(self.proj)
+        proj_w, proj_b = self._get_dynamic_proj_params(self.proj)
 
         static_mha = MultiheadAttention(
             embed_dims=embed_dims,
@@ -225,6 +244,7 @@ class DynamicMultiheadAttention(MultiheadAttention, DynamicOP):
             attn_drop=self.attn_drop,
             relative_position=self.relative_position,
             max_relative_position=self.max_relative_position)
+
         static_mha.w_qs.weight = nn.Parameter(q_w.clone())
         static_mha.w_qs.bias = nn.Parameter(q_b.clone())
 
