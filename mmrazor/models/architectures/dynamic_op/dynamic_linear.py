@@ -14,24 +14,18 @@ class DynamicLinear(nn.Linear, ChannelDynamicOP):
     """Applies a linear transformation to the incoming data according to the
     `mutable_in_features` and `mutable_out_features` dynamically.
 
-    Note that in_features/out_features and mlp_ratios can not be mutable at
-    the same time.
-
     Args:
         in_features_cfg (Dict): Config related to `in_features`.
         out_features_cfg (Dict): Config related to `out_features`.
     """
 
-    accpeted_mutables = {
-        'mutable_in_features', 'mutable_out_features', 'mutable_mlp_ratios'
-    }
+    accpeted_mutables = {'mutable_in_features', 'mutable_out_features'}
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.mutable_in_features: Optional[BaseMutable] = None
         self.mutable_out_features: Optional[BaseMutable] = None
-        self.mutable_mlp_ratios: Optional[BaseMutable] = None
 
     def mutate_in_features(self, mutable_in_features: BaseMutable) -> None:
         self.check_mutable_channels(mutable_in_features)
@@ -40,41 +34,18 @@ class DynamicLinear(nn.Linear, ChannelDynamicOP):
 
     def mutate_out_features(self, mutable_out_features: BaseMutable) -> None:
         self.check_mutable_channels(mutable_out_features)
-        self.mutable_out_features = mutable_out_features
 
-    def mutate_mlp_ratios(self, mutable_mlp_ratios: BaseMutable) -> None:
-        self.check_if_mutables_fixed(mutable_mlp_ratios)
-        self.mutable_mlp_ratios = mutable_mlp_ratios
+        self.mutable_out_features = mutable_out_features
 
     @property
     def mutable_in(self) -> Optional[BaseMutable]:
         """Mutable `in_features`."""
-        if isinstance(self.mutable_in_features, BaseMutable) and \
-                isinstance(self.mutable_mlp_ratios, BaseMutable):
-            raise '`in_features` and `mlp_ratios` can not be mutable' \
-                'at the same time.'
-
-        if isinstance(self.mutable_in_features, BaseMutable):
-            return self.mutable_in_features
-        elif isinstance(self.mutable_mlp_ratios, BaseMutable):
-            return self.in_features * self.mutable_mlp_ratios
-        else:
-            raise '`in_features` and `mlp_ratios` are both not mutable.'
+        return self.mutable_in_features
 
     @property
     def mutable_out(self) -> Optional[BaseMutable]:
         """Mutable `out_features`."""
-        if isinstance(self.mutable_out_features, BaseMutable) and \
-            isinstance(self.mutable_mlp_ratios, BaseMutable):
-            raise '`out_features` and `mlp_ratios` can not be mutable' \
-                'at the same time.'
-
-        if isinstance(self.mutable_out_features, BaseMutable):
-            return self.mutable_out_features
-        elif isinstance(self.mutable_mlp_ratios, BaseMutable):
-            return self.out_features * self.mutable_mlp_ratios
-        else:
-            raise '`out_features` and `mlp_ratios` are both not mutable.'
+        return self.mutable_out_features
 
     def _get_dynamic_params(self) -> Tuple[Tensor, Optional[Tensor]]:
         if self.mutable_in_features is None and \
