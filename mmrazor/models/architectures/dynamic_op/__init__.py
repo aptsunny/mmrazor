@@ -9,7 +9,7 @@ from .dynamic_function import DynamicInputResizer
 from .dynamic_linear import DynamicLinear
 from .dynamic_norm import (DynamicBatchNorm1d, DynamicBatchNorm2d,
                            DynamicBatchNorm3d, DynamicGroupNorm,
-                           DynamicInstanceNorm)
+                           DynamicInstanceNorm, DynamicLayerNorm)
 from .dynamic_relative_position import (DynamicRelativePosition2D,
                                         RelativePosition2D)
 from .head import DynamicLinearClsHead

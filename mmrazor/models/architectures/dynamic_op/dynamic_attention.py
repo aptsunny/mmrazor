@@ -137,7 +137,8 @@ class DynamicMultiheadAttention(MultiheadAttention, DynamicOP):
 
         self.mutable_num_heads: Optional[BaseMutable] = None
         self.mutable_embed_dims: Optional[BaseMutable] = None
-        self.mutable_head_dims: Optional[BaseMutable] = None  # DerivedMutable
+        self.mutable_head_dims: Optional[BaseMutable] = None
+        # DerivedMutable
 
         # dynamic image relative position encoding
         if self.relative_position:
