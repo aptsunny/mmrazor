@@ -147,6 +147,15 @@ class DynamicMultiheadAttention(MultiheadAttention, DynamicOP):
             self.rel_pos_embed_v = DynamicRelativePosition2D(
                 self.num_heads, self.max_relative_position)
 
+    def mutate_num_heads(self, mutable_num_heads):
+        self.mutable_num_heads = mutable_num_heads
+
+    def mutate_embed_dims(self, mutable_embed_dims):
+        self.mutable_embed_dims = mutable_embed_dims
+
+    def mutate_head_dims(self, mutable_head_dims):
+        self.mutable_head_dims = mutable_head_dims
+
     def _get_dynamic_proj_params(
             self, w: nn.Linear) -> Tuple[Tensor, Optional[Tensor]]:
         # TODO support mask later

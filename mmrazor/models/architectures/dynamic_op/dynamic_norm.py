@@ -265,6 +265,9 @@ class DynamicLayerNorm(LayerNorm, MutableManageMixIn):
         num_channels_cfg_.update(dict(num_channels=self.num_channels))
         self.mutable_num_channels = MODELS.build(num_channels_cfg_)
 
+    def mutate_num_channels(self, mutable_num_channels):
+        self.mutable_num_channels = mutable_num_channels
+
     @property
     def mutable_in(self):
         """Mutable `num_channels`."""
