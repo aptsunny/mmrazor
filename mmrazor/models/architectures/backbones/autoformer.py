@@ -1,12 +1,13 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 from timeit import repeat
-from typing import Dict, List
+from typing import Dict, List, final
 
 import torch.nn as nn
 from mmcls.models.backbones.base_backbone import BaseBackbone
 from mmcv.cnn import build_activation_layer, build_norm_layer
 from torch import Tensor
-
+import torch
+import torch.nn.functional as F
 from mmrazor.models.architectures.dynamic_op import (DynamicLinear,
                                                      DynamicMultiheadAttention,
                                                      DynamicSequential,
@@ -19,13 +20,18 @@ class Autoformer(BaseBackbone):
 
     # 3 parameters are needed to construct a layer,
     # from left to right: embed_dim, num_head, mlp_ratio, repeat_num
-    arch_settings = [[624, 10, 4.0, 16]]
+    arch_settings = {
+        'embed_dims': 624,
+        'num_heads':  10, 
+        'mlp_ratios': 4.0,
+        'depth': 16,
+    }
     # mlp_ratio, num_heads
     mutable_settings = {
-        'mlp_ratios': [3.0, 3.5, 4.0], # mutable value
-        'num_heads': [8, 9, 10], # mutable value
-        'depth': [14, 15, 16], # mutable value
-        'embed_dims': [528, 576, 624], # mutable channel
+        'mlp_ratios': [3.0, 3.5, 4.0],  # mutable value
+        'num_heads': [8, 9, 10],  # mutable value
+        'depth': [14, 15, 16],  # mutable value
+        'embed_dims': [528, 576, 624],  # mutable channel
     }
 
     def __init__(
@@ -45,26 +51,41 @@ class Autoformer(BaseBackbone):
         self.patch_size = patch_size
         self.qkv_bias = qkv_bias
         self.in_channels = in_channels
-        
-        
-        self.mutable_embed_dim
+        self.dropout = 0.5
+
+        self.embed_dims = self.arch_settings['embed_dims']
+
+        # mutable 
+        self.mutable_embed_dims = None # TODO 
+
         # patch embeddings
         self.patch_embed = DynamicPatchEmbed(
-            
+
         )
 
+        # num of patches
+        self.patch_resolution = [img_size //
+                                 patch_size, img_size // patch_size]
+        num_patches = self.patch_resolution[0] * self.patch_resolution[1]
+
+        # cls token and pos embed
+        self.pos_embed = nn.Parameter(torch.zeros(1, num_patches+1, embed_dims))
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dims))
+
+        # main body 
         self.blocks = nn.ModuleList()
         for layer_cfg in self.arch_settings:
             embed_dims, num_heads, mlp_ratios, repeat_num = layer_cfg
-            layers = self.make_layers(embed_dims=embed_dims, 
-                                      num_heads=num_heads, 
+            layers = self.make_layers(embed_dims=embed_dims,
+                                      num_heads=num_heads,
                                       mlp_ratios=mlp_ratios,
                                       repeat_num=repeat_num)
             self.blocks.append(layers)
-        
-        
-            
-        
+
+        self.final_norm =final_norm 
+        if self.final_norm:
+            self.norm1_name, norm1 = build_norm_layer(norm_cfg, self.embed_dims)
+            self.add_module(self.norm1_name, norm1)
 
     def make_layers(self, embed_dims, num_heads, mlp_ratios, depth):
         layers = []
@@ -74,10 +95,30 @@ class Autoformer(BaseBackbone):
                 num_heads=num_heads,
                 mlp_ratio=mlp_ratios,
                 drop_rate=0.,
-                attn_drop_rate=0.)
+                attn_drop_rate=self.dropout)
             layers.append(layer)
 
         return DynamicSequential(*layers)
+    
+    def forward(self, x: Tensor) -> Tensor:
+        B = x.shape[0]
+        x = self.patch_embed(x)
+        embed_dims = self.mutable_embed_dims.current_choice
+        # cls token
+        cls_tokens = self.cls_token[...,: embed_dims].expand(B, -1, -1)
+        x = torch.cat((cls_tokens, x), dim=1)
+        # pos embed 
+        x = x + self.pos_embed[..., :embed_dims]
+
+        x = F.dropout(x, p=self.dropout)
+        
+
+        x = x + self.pos_embed() 
+
+        for block in self.blocks:
+            x = block(x)
+
+        return torch.mean(x[:,1:], dim=1)
 
 
 class TransformerEncoderLayer(BaseBackbone):
