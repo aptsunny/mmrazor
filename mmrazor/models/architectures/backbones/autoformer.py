@@ -1,5 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-from typing import Dict, List
+from lib2to3.pytree import Base
+from typing import Dict, List, Union
 
 import torch
 import torch.nn as nn
@@ -13,6 +14,7 @@ from mmrazor.models.architectures.dynamic_op import (DynamicLinear,
                                                      DynamicPatchEmbed,
                                                      DynamicSequential)
 from mmrazor.models.mutables import OneShotMutableChannel, OneShotMutableValue
+from ...mutables.base_mutable import BaseMutable
 from mmrazor.registry import MODELS
 
 
@@ -32,9 +34,9 @@ class TransformerEncoderLayer(BaseBackbone):
     """
 
     def __init__(self,
-                 embed_dims: int,
-                 num_heads: int,
-                 mlp_ratio: List,
+                 embed_dims: Union[int, BaseMutable],
+                 num_heads: Union[int, BaseMutable],
+                 mlp_ratio: Union[float, BaseMutable],
                  drop_rate: float,
                  attn_drop_rate: float,
                  qkv_bias: bool = True,
@@ -73,6 +75,9 @@ class TransformerEncoderLayer(BaseBackbone):
     def norm2(self):
         return getattr(self, self.norm2_name)
 
+    def mutate_encoder_layer(self, embed_dims, num_heads, mlp_ratios):
+        ...
+
     def forward(self, x: Tensor) -> Tensor:
         residual = x
         x = self.norm1(x)
@@ -92,7 +97,6 @@ def _mutate_layer(layer: TransformerEncoderLayer,
                   derived_mlp_ratios=None,
                   derived_depth=None):
     """mainly used for embed dims"""
-
     if derived_embed_dims is not None:
         layer.attn.mutate_embed_dims(derived_embed_dims)
         layer.norm1.mutate_num_channels(derived_embed_dims)
@@ -106,7 +110,7 @@ def _mutate_layer(layer: TransformerEncoderLayer,
 class Autoformer(BaseBackbone):
 
     # 3 parameters are needed to construct a layer,
-    # from left to right: embed_dim, num_head, mlp_ratio, repeat_num
+    # from left to right: embed_dim, num_head, mlp_ratio, depth
     arch_settings = {
         'embed_dims': 624,
         'num_heads': 10,
@@ -143,25 +147,28 @@ class Autoformer(BaseBackbone):
         self.embed_dims = self.arch_settings['embed_dims']
 
         # adopt mutable settings
-        mlp_ratio_range = self.mutable_settings['mlp_ratios']
-        num_head_range = self.mutable_settings['num_heads']
-        depth_range = self.mutable_settings['depth']
-        embed_dim_range = self.mutable_settings['embed_dims']
+        self.mlp_ratio_range = self.mutable_settings['mlp_ratios']
+        self.num_head_range = self.mutable_settings['num_heads']
+        self.depth_range = self.mutable_settings['depth']
+        self.embed_dim_range = self.mutable_settings['embed_dims']
 
         # mutable value or channel
         self.mutable_embed_dims = OneShotMutableChannel(
-            num_channels=max(embed_dim_range),
+            num_channels=max(self.embed_dim_range),
             candidate_mode='number',
-            candidate_choices=embed_dim_range)
+            candidate_choices=self.embed_dim_range)
 
         self.mutable_num_heads = OneShotMutableValue(
-            value_list=num_head_range, default_value=max(num_head_range))
+            value_list=self.num_head_range,
+            default_value=max(self.num_head_range))
 
-        self.mutable_depth_range = OneShotMutableValue(
-            value_list=depth_range, default_value=max(depth_range))
+        self.mutable_depth = OneShotMutableValue(
+            value_list=self.depth_range,
+            default_value=max(self.depth_range))
 
-        self.mutable_mlp_ratio_range = OneShotMutableValue(
-            value_list=mlp_ratio_range, default_value=max(mlp_ratio_range))
+        self.mutable_mlp_ratio = OneShotMutableValue(
+            value_list=self.mlp_ratio_range,
+            default_value=max(self.mlp_ratio_range))
 
         # patch embeddings
         self.patch_embed = DynamicPatchEmbed(
@@ -184,15 +191,11 @@ class Autoformer(BaseBackbone):
         self.cls_token = nn.Parameter(torch.zeros(1, 1, self.embed_dims))
 
         # main body
-        self.blocks = nn.ModuleList()
-        for layer_cfg in self.arch_settings:
-            embed_dims, num_heads, mlp_ratios, repeat_num = layer_cfg
-            layers = self.make_layers(
-                embed_dims=embed_dims,
-                num_heads=num_heads,
-                mlp_ratios=mlp_ratios,
-                repeat_num=repeat_num)
-            self.blocks.append(layers)
+        self.blocks = self.make_layers(
+            embed_dims=max(self.embed_dim_range),
+            num_heads=max(self.num_head_range),
+            mlp_ratios=max(self.mlp_ratio_range),
+            depth=max(self.depth_range))
 
         self.final_norm = final_norm
         if self.final_norm:
@@ -213,6 +216,15 @@ class Autoformer(BaseBackbone):
 
         return DynamicSequential(*layers)
 
+    def mutate(self):
+        # only one layer in blocks
+        layer = self.blocks[0]
+
+        # mutate depth
+        layer.mutate_depth(self.mutable_depth, self.depth_range)
+
+        # process layers (embed dims)
+
     def forward(self, x: Tensor) -> Tensor:
         B = x.shape[0]
         x = self.patch_embed(x)
@@ -227,8 +239,8 @@ class Autoformer(BaseBackbone):
 
         x = x + self.pos_embed()
 
-        for block in self.blocks:
-            x = block(x)
+        # dynamic depth
+        x = self.blocks(x)
 
         return torch.mean(x[:, 1:], dim=1)
 
