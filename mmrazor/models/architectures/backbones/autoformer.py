@@ -1,6 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-from lib2to3.pytree import Base
-from typing import Dict, List, Union
+from typing import Dict, Union
 
 import torch
 import torch.nn as nn
@@ -121,7 +120,7 @@ class TransformerEncoderLayer(BaseBackbone):
         return residual + x
 
 
-@MODELS.register_module
+@MODELS.register_module()
 class Autoformer(BaseBackbone):
 
     # 3 parameters are needed to construct a layer,

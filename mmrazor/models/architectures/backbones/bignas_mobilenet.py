@@ -200,12 +200,15 @@ class BigNASMobileNet(BaseBackbone):
             channels_range: Optional[List] = mutable_cfg[0]
             num_blocks_range: Optional[List] = mutable_cfg[1]
             kernel_size_range: Optional[List] = mutable_cfg[2]
+
             channels_list: Optional[List] = None
             num_blocks_list: Optional[List[int]] = None
             kernel_size_list: Optional[List[int]] = None
+
             mutable_channel: Optional[BaseMutable] = None
             mutable_depth: Optional[BaseMutable] = None
             mutable_kernel_size: Optional[BaseMutable] = None
+
             if channels_range is not None:
                 channels_list = _range_to_list(channels_range)
                 mutable_channel = OneShotMutableChannel(
@@ -213,18 +216,21 @@ class BigNASMobileNet(BaseBackbone):
                     candidate_mode='number',
                     candidate_choices=channels_list)
                 mutable_list.append(mutable_channel)
+
             if num_blocks_range is not None:
                 num_blocks_list = _range_to_list(num_blocks_range)
                 mutable_depth = OneShotMutableValue(
                     value_list=num_blocks_list,
                     default_value=max(num_blocks_list))
                 mutable_list.append(mutable_depth)
+
             if kernel_size_range is not None:
                 kernel_size_list = _range_to_list(kernel_size_range)
                 mutable_kernel_size = OneShotMutableValue(
                     value_list=kernel_size_list,
                     default_value=max(kernel_size_list))
                 mutable_list.append(mutable_kernel_size)
+
             source_mutables[self.all_layers[layer_idx]] = mutable_list
 
             if layer_idx == 0 or layer_idx == len(self.all_layers) - 1:

@@ -162,6 +162,7 @@ class DynamicBatchNorm3d(_DynamicBatchNorm):
                 input.dim()))
 
 
+@NORM_LAYERS.register_module()
 class DynamicInstanceNorm(_InstanceNorm, MutableManageMixIn):
     """Applies Instance Normalization over an input according to the
     `mutable_num_features` dynamically.
@@ -211,6 +212,7 @@ class DynamicInstanceNorm(_InstanceNorm, MutableManageMixIn):
                                self.momentum, self.eps)
 
 
+@NORM_LAYERS.register_module()
 class DynamicGroupNorm(GroupNorm, MutableManageMixIn):
     """Applies Group Normalization over a mini-batch of inputs according to the
     `mutable_num_channels` dynamically.
@@ -250,6 +252,7 @@ class DynamicGroupNorm(GroupNorm, MutableManageMixIn):
         return F.group_norm(input, self.num_groups, weight, bias, self.eps)
 
 
+@NORM_LAYERS.register_module()
 class DynamicLayerNorm(LayerNorm, MutableManageMixIn):
     """Applies Layer Normalization over a mini-batch of inputs according to the
     `mutable_num_channels` dynamically.

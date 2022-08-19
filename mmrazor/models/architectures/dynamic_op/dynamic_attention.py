@@ -7,10 +7,12 @@ from mmcv.cnn.bricks.registry import DROPOUT_LAYERS
 from mmcv.runner.base_module import BaseModule
 from torch import Tensor
 
-from mmrazor.models.architectures.dynamic_op import (DynamicRelativePosition2D,
-                                                     RelativePosition2D)
+from mmrazor.models.architectures.dynamic_op.dynamic_relative_position import (
+    DynamicRelativePosition2D, RelativePosition2D)
 from mmrazor.models.mutables.base_mutable import BaseMutable
 from .base import DynamicOP
+
+__all__ = ['MultiheadAttention', 'DynamicMultiheadAttention']
 
 
 class MultiheadAttention(BaseModule):
