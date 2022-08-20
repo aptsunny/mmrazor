@@ -7,7 +7,7 @@ from torch.nn import Module
 from mmrazor.models.mutables.base_mutable import BaseMutable
 from mmrazor.models.ops import InputResizer
 from mmrazor.registry import MODELS
-from .base import DynamicOP
+from ..base import DynamicOP
 
 
 # TODO

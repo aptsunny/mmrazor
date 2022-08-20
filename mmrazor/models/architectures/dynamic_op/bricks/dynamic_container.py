@@ -7,7 +7,7 @@ from torch.nn import Module
 
 from mmrazor.models.mutables import DerivedMutable, MutableValue
 from mmrazor.models.mutables.base_mutable import BaseMutable
-from .base import DynamicOP
+from ..base import DynamicOP
 
 
 class DynamicSequential(Sequential, DynamicOP):

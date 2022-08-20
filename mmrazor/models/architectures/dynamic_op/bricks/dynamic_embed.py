@@ -8,7 +8,7 @@ from mmcv.cnn.bricks.registry import CONV_LAYERS
 from torch import Tensor
 
 from mmrazor.models.mutables.base_mutable import BaseMutable
-from .base import ChannelDynamicOP
+from ..base import ChannelDynamicOP
 
 
 @CONV_LAYERS.register_module()

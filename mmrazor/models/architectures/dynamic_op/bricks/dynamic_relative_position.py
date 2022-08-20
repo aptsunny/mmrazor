@@ -7,7 +7,7 @@ from mmcv.cnn.utils.weight_init import trunc_normal_
 from torch import Tensor
 
 from mmrazor.models.mutables.base_mutable import BaseMutable
-from .base import ChannelDynamicOP
+from ..base import ChannelDynamicOP
 
 
 class RelativePosition2D(nn.Module):
