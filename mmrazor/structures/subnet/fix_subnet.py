@@ -12,13 +12,14 @@ def _dynamic_to_static(model: nn.Module) -> None:
     # Avoid circular import
     from mmrazor.models.architectures.dynamic_op.bricks import DynamicMixin
 
-    def traverse_children(module: nn.Module, prefix: str = '') -> None:
+    def traverse_children(module: nn.Module) -> None:
+        # TODO
+        # dynamicop must have no dynamic child
         for name, child in module.named_children():
             if isinstance(child, DynamicMixin):
                 setattr(module, name, child.to_static_op())
-
-    if isinstance(model, DynamicOP):
-        raise RuntimeError('Supernet can not be a dynamic model!')
+            else:
+                traverse_children(child)
 
     if isinstance(model, DynamicMixin):
         raise RuntimeError('Root model can not be dynamic op.')
