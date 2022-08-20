@@ -4,6 +4,7 @@ from typing import Dict, Optional
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
+from torch.nn import LayerNorm
 from torch.nn.modules.batchnorm import _BatchNorm
 
 from mmrazor.models.mutables.base_mutable import BaseMutable
@@ -127,4 +128,70 @@ class DynamicBatchNorm3d(_DynamicBatchNorm):
         """Check if input dimension is valid."""
         if input.dim() != 5:
             raise ValueError('expected 5D input (got {}D input)'.format(
+                input.dim()))
+
+
+@NORM_LAYERS.register_module()
+class DynamicLayerNorm(LayerNorm, DynamicBatchNormMixin):
+    """Applies Layer Normalization over a mini-batch of inputs according to the
+    `mutable_num_channels` dynamically.
+
+    Args:
+        num_channels_cfg (Dict): Config related to `num_channels`.
+    """
+    accepted_mutable_attrs = {'num_features'}
+
+    def __init__(self, *args, **kwargs):
+        super(DynamicLayerNorm, self).__init__(*args, **kwargs)
+
+        self.mutable_attrs: Dict[str, Optional[BaseMutable]] = nn.ModuleDict()
+
+    @classmethod
+    def convert_from(cls, module: LayerNorm):
+        """Convert a _BatchNorm module to a DynamicBatchNorm.
+
+        Args:
+            module (:obj:`torch.nn._BatchNorm`): The original BatchNorm module.
+        """
+        dynamic_ln = cls(
+            normalized_shape=module.normalized_shape,
+            eps=module.eps,
+            elementwise_affine=module.elementwise_affine)
+
+        return dynamic_ln
+
+    def mutate_num_channels(self, mutable_num_channels):
+        self.mutable_num_channels = mutable_num_channels
+
+    @property
+    def mutable_in(self):
+        """Mutable `num_channels`."""
+        return self.mutable_num_channels
+
+    @property
+    def mutable_out(self):
+        """Mutable `num_channels`."""
+        return self.mutable_num_channels
+
+    def forward(self, input: Tensor) -> Tensor:
+        """Slice the parameters according to `mutable_num_channels`, and
+        forward."""
+        if self.affine:
+            out_mask = self.mutable_num_channels.current_mask.to(
+                self.weight.device)
+            weight = self.weight[out_mask]
+            bias = self.bias[out_mask]
+        else:
+            weight, bias = self.weight, self.bias
+
+        return F.layer_norm(input, self.num_groups, weight, bias, self.eps)
+
+    @property
+    def static_op_factory(self):
+        return LayerNorm
+
+    def _check_input_dim(self, input: Tensor) -> None:
+        """Check if input dimension is valid."""
+        if input.dim() != 4:
+            raise ValueError('expected 4D input (got {}D input)'.format(
                 input.dim()))

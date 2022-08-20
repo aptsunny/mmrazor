@@ -271,6 +271,147 @@ class DynamicBatchNormMixin(DynamicChannelMixin):
         return static_bn
 
 
+# TODO
+class DynamicLayerNormMixin(DynamicChannelMixin):
+    """A mixin class for Pytorch LayerNorm, which can mutate
+    ``num_features``."""
+    accepted_mutable_attrs: Set[str] = {'num_features'}
+    attr_mappings: Dict[str, str] = {
+        'in_channels': 'num_features',
+        'out_channels': 'num_features',
+    }
+
+    def register_mutable_attr(self, attr, mutable):
+        self.check_mutable_attr_valid(attr)
+        if attr in self.attr_mappings:
+            attr_map = self.attr_mappings[attr]
+            assert attr_map in self.accepted_mutable_attrs
+            if attr_map in self.mutable_attrs:
+                print_log(
+                    f'{attr_map}({attr}) is already in `mutable_attrs`',
+                    level=logging.WARNING)
+            else:
+                self._register_mutable_attr(attr_map, mutable)
+        elif attr in self.accepted_mutable_attrs:
+            self._register_mutable_attr(attr, mutable)
+        else:
+            raise NotImplementedError
+
+    def _register_mutable_attr(self, attr, mutable):
+
+        if attr == 'num_features':
+            self._register_mutable_num_features(mutable)
+        else:
+            raise NotImplementedError
+
+    def _register_mutable_num_features(
+            self: _BatchNorm, mutable_num_features: BaseMutable) -> None:
+        """Mutate ``num_features`` with given mutable.
+
+        Args:
+            mutable_num_features (BaseMutable): Mutable for controlling
+                ``num_features``.
+
+        Raises:
+            RuntimeError: Error if both ``affine`` and
+                ``tracking_running_stats`` are False.
+            ValueError: Error if size of mask if not same as ``num_features``.
+        """
+        if not self.affine and not self.track_running_stats:
+            raise RuntimeError(
+                'num_features can not be mutated if both `affine` and '
+                '`tracking_running_stats` are False')
+
+        self.check_mutable_channels(mutable_num_features)
+        mask_size = mutable_num_features.current_mask.size(0)
+        if mask_size != self.num_features:
+            raise ValueError(
+                f'Expect mask size of mutable to be {self.num_features} as '
+                f'`num_features`, but got: {mask_size}.')
+
+        self.mutable_attrs['num_features'] = mutable_num_features
+
+    def _get_num_features_mask(self: _BatchNorm) -> Optional[torch.Tensor]:
+        """Get mask of ``num_features``"""
+        if self.affine:
+            refer_tensor = self.weight
+        elif self.track_running_stats:
+            refer_tensor = self.running_mean
+        else:
+            return None
+
+        if 'num_features' in self.mutable_attrs:
+            out_mask = self.mutable_attrs['num_features'].current_mask.to(
+                refer_tensor.device)
+        else:
+            out_mask = torch.ones_like(refer_tensor).bool()
+
+        return out_mask
+
+    def get_dynamic_params(
+        self: _BatchNorm
+    ) -> Tuple[Optional[Tensor], Optional[Tensor], Optional[Tensor],
+               Optional[Tensor]]:
+        """Get dynamic parameters that will be used in forward process.
+
+        Returns:
+            Tuple[Optional[Tensor], Optional[Tensor], Optional[Tensor],
+                Optional[Tensor]]: Sliced running_mean, running_var, weight and
+                bias.
+        """
+        out_mask = self._get_num_features_mask()
+
+        if self.affine:
+            weight = self.weight[out_mask]
+            bias = self.bias[out_mask]
+        else:
+            weight, bias = self.weight, self.bias
+
+        if self.track_running_stats:
+            running_mean = self.running_mean[out_mask] \
+                if not self.training or self.track_running_stats else None
+            running_var = self.running_var[out_mask] \
+                if not self.training or self.track_running_stats else None
+        else:
+            running_mean, running_var = self.running_mean, self.running_var
+
+        return running_mean, running_var, weight, bias
+
+    def to_static_op(self: _BatchNorm) -> nn.Module:
+        """Convert dynamic BatchNormxd to :obj:`torch.nn.BatchNormxd`.
+
+        Returns:
+            torch.nn.BatchNormxd: :obj:`torch.nn.BatchNormxd` with sliced
+                parameters.
+        """
+        self.check_if_mutables_fixed()
+
+        running_mean, running_var, weight, bias = self.get_dynamic_params()
+        if 'num_features' in self.mutable_attrs:
+            num_features = self.mutable_attrs['num_features'].current_mask.sum(
+            ).item()
+        else:
+            num_features = self.num_features
+
+        static_bn = self.static_op_factory(
+            num_features=num_features,
+            eps=self.eps,
+            momentum=self.momentum,
+            affine=self.affine,
+            track_running_stats=self.track_running_stats)
+
+        if running_mean is not None:
+            static_bn.running_mean.copy_(running_mean)
+        if running_var is not None:
+            static_bn.running_var.copy_(running_var)
+        if weight is not None:
+            static_bn.weight = nn.Parameter(weight)
+        if bias is not None:
+            static_bn.bias = nn.Parameter(bias)
+
+        return static_bn
+
+
 class DynamicLinearMixin(DynamicChannelMixin):
     """A mixin class for Pytorch Linear, which can mutate ``in_features`` and
     ``out_features``."""
