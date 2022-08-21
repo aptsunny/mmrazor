@@ -10,9 +10,8 @@ from torch import Tensor, nn
 from torch.nn import LayerNorm
 from torch.nn.modules.batchnorm import _BatchNorm
 
-from mmrazor.models.architectures.dynamic_op import (MultiheadAttention,
-                                                     RelativePosition2D)
 from mmrazor.models.mutables.base_mutable import BaseMutable
+from .utils import MultiheadAttention, RelativePosition2D
 
 
 class DynamicMixin(ABC):
@@ -607,6 +606,11 @@ class DynamicRelativePosition2DMixin(DynamicChannelMixin):
         'in_channels': 'head_dims',
         'out_channels': 'head_dims',
     }
+
+    @property
+    def mutable_head_dims(self):
+        assert hasattr(self, 'mutable_attrs')
+        return self.mutable_attrs['head_dims']
 
     def register_mutable_attr(self: MultiheadAttention, attr: str,
                               mutable: BaseMutable):
