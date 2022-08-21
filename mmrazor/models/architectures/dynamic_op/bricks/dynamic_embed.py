@@ -1,5 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-from typing import Callable, Dict
+from typing import Dict
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -9,6 +9,7 @@ from torch import Tensor
 
 from mmrazor.models.mutables.base_mutable import BaseMutable
 from .dynamic_mixins import DynamicPatchEmbedMixin
+
 
 @CONV_LAYERS.register_module()
 class DynamicPatchEmbed(PatchEmbed, DynamicPatchEmbedMixin):
