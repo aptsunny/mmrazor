@@ -1,5 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 from .base import DynamicOP
+from .bricks import *  # noqa: F401
 from .default_dynamic_ops import (DynamicBatchNorm, DynamicConv2d,
                                   DynamicGroupNorm, DynamicInstanceNorm,
                                   DynamicLinear)
