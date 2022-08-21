@@ -1,5 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-from typing import Dict, Union
+from typing import Dict, List, Optional, Union
 
 import torch
 import torch.nn as nn
@@ -50,9 +50,9 @@ class TransformerEncoderLayer(BaseBackbone):
         self.mlp_ratio = mlp_ratio
 
         # mutable settings
-        self.mutable_embed_dims = None
-        self.mutable_num_heads = None
-        self.mutable_mlp_ratios = None
+        self.mutable_embed_dims: Optional[BaseMutable] = None
+        self.mutable_num_heads: Optional[BaseMutable] = None
+        self.mutable_mlp_ratios: Optional[BaseMutable] = None
 
         self.norm1_name, norm1 = build_norm_layer(norm_cfg, self.embed_dims)
         self.add_module(self.norm1_name, norm1)
@@ -89,23 +89,25 @@ class TransformerEncoderLayer(BaseBackbone):
         self.mutable_mlp_ratios = mutable_mlp_ratios
 
         # handle the mutable of the first dynamic LN
-        self.norm1.mutate_num_channels(
-            mutable_embed_dims.derive_same_mutable())
+        self.norm1.register_mutable_attr('num_features', mutable_embed_dims)
 
         # handle the mutable in multihead attention
-        self.attn.mutate_embed_dims(mutable_embed_dims)
-        self.attn.mutate_num_heads(mutable_num_heads)
+        self.attn.register_mutable_attr('embed_dims', mutable_embed_dims)
+        self.attn.register_mutable_attr('num_heads', mutable_num_heads)
 
         # handle the mutable of the second dynamic LN
-        self.norm2.mutate_num_channels(
-            mutable_embed_dims.derive_same_mutable())
+        self.norm2.register_mutable_attr(
+            'num_features', mutable_embed_dims.derive_same_mutable())
 
         # handle the mutable of FFN
         self.middle_channels = mutable_embed_dims * mutable_mlp_ratios
-        self.fc1.mutate_in_features(mutable_embed_dims.derive_same_mutable())
-        self.fc1.mutate_out_features(self.middle_channels)
-        self.fc2.mutate_in_features(self.middle_channels.derive_same_mutable())
-        self.fc2.mutate_out_features(mutable_embed_dims.derive_same_mutable())
+        self.fc1.register_mutable_attr(
+            'in_channels', mutable_embed_dims.derive_same_mutable())
+        self.fc1.register_mutable_attr('out_channels', self.middle_channels)
+        self.fc2.register_mutable_attr(
+            'in_channels', self.middle_channels.derive_same_mutable())
+        self.fc2.register_mutable_attr(
+            'out_channels', mutable_embed_dims.derive_same_mutable())
 
     def forward(self, x: Tensor) -> Tensor:
         residual = x
@@ -122,7 +124,6 @@ class TransformerEncoderLayer(BaseBackbone):
 
 @MODELS.register_module()
 class Autoformer(BaseBackbone):
-
     # 3 parameters are needed to construct a layer,
     # from left to right: embed_dim, num_head, mlp_ratio, depth
     arch_settings = {
@@ -132,7 +133,7 @@ class Autoformer(BaseBackbone):
         'depth': 16,
     }
     # mlp_ratio, num_heads
-    mutable_settings = {
+    mutable_settings: Dict[str, List] = {
         'mlp_ratios': [3.0, 3.5, 4.0],  # mutable value
         'num_heads': [8, 9, 10],  # mutable value
         'depth': [14, 15, 16],  # mutable value
@@ -159,16 +160,16 @@ class Autoformer(BaseBackbone):
         self.dropout = 0.5
 
         # supernet settings
-        self.embed_dims = self.arch_settings['embed_dims']
-        self.num_heads = self.arch_settings['num_heads']
+        self.embed_dims = int(self.arch_settings['embed_dims'])
+        self.num_heads = int(self.arch_settings['num_heads'])
         self.mlp_ratios = self.arch_settings['mlp_ratios']
         self.depth = self.arch_settings['depth']
 
         # adapt mutable settings
-        self.mlp_ratio_range = self.mutable_settings['mlp_ratios']
-        self.num_head_range = self.mutable_settings['num_heads']
-        self.depth_range = self.mutable_settings['depth']
-        self.embed_dim_range = self.mutable_settings['embed_dims']
+        self.mlp_ratio_range: List = self.mutable_settings['mlp_ratios']
+        self.num_head_range: List = self.mutable_settings['num_heads']
+        self.depth_range: List = self.mutable_settings['depth']
+        self.embed_dim_range: List = self.mutable_settings['embed_dims']
 
         # patch embeddings
         self.last_mutable_embed_dim = None
@@ -182,17 +183,15 @@ class Autoformer(BaseBackbone):
 
         # mutable variables of autoformer
         self.mutable_embed_dims = OneShotMutableChannel(
-            num_channels=max(self.embed_dim_range),
+            num_channels=self.embed_dims,
             candidate_mode='number',
             candidate_choices=self.embed_dim_range)
         self.mutable_num_heads = OneShotMutableValue(
-            value_list=self.num_head_range,
-            default_value=max(self.num_head_range))
+            value_list=self.num_head_range, default_value=self.num_heads)
         self.mutable_mlp_ratios = OneShotMutableValue(
-            value_list=self.mlp_ratio_range,
-            default_value=max(self.mlp_ratio_range))
+            value_list=self.mlp_ratio_range, default_value=self.mlp_ratios)
         self.mutable_depth = OneShotMutableValue(
-            value_list=self.depth_range, default_value=max(self.depth_range))
+            value_list=self.depth_range, default_value=self.depth)
 
         # num of patches
         self.patch_resolution = [
@@ -237,7 +236,8 @@ class Autoformer(BaseBackbone):
         self.blocks.mutate_depth(self.mutable_depth, self.depth_range)
 
         # handle the mutation of patch embed
-        self.patch_embed.mutate_embed_dim(self.mutable_embed_dims)
+        self.patch_embed.register_mutable_attr('embed_dims',
+                                               self.mutable_embed_dims)
         self.last_mutable_embed_dim = self.mutable_embed_dims
 
         # handle the dependencies of TransformerEncoderLayers
@@ -245,7 +245,7 @@ class Autoformer(BaseBackbone):
             layer = self.blocks[i]
 
             derived_embed_dim = self.last_mutable_embed_dim.derive_same_mutable(
-            )
+            )  # noqa: E501
 
             layer.mutate_encoder_layer(
                 mutable_embed_dims=derived_embed_dim,
@@ -257,7 +257,8 @@ class Autoformer(BaseBackbone):
 
         # handle the mutable of final norm
         if self.final_norm:
-            self.final_norm.mutate_num_channels(
+            self.final_norm.register_mutable_attr(
+                'num_features',
                 self.last_mutable_embed_dim.derive_same_mutable())
 
     def forward(self, x: Tensor) -> Tensor:

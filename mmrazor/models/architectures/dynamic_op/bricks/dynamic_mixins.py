@@ -10,10 +10,8 @@ from torch import Tensor, nn
 from torch.nn import LayerNorm
 from torch.nn.modules.batchnorm import _BatchNorm
 
-from mmrazor.models.architectures.dynamic_op.bricks.dynamic_attention import \
-    MultiheadAttention
-from mmrazor.models.architectures.dynamic_op.bricks.dynamic_relative_position import \
-    RelativePosition2D
+from mmrazor.models.architectures.dynamic_op import (MultiheadAttention,
+                                                     RelativePosition2D)
 from mmrazor.models.mutables.base_mutable import BaseMutable
 
 

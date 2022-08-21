@@ -11,7 +11,6 @@ from .dynamic_mixins import (DynamicBatchNormMixin, DynamicChannelMixin,
                              DynamicLinearMixin, DynamicMixin)
 from .dynamic_norm import (DynamicBatchNorm1d, DynamicBatchNorm2d,
                            DynamicBatchNorm3d, DynamicLayerNorm)
-from .dynamic_relative_position import DynamicRelativePosition2D
 
 __all__ = [
     'BigNasConv2d', 'DynamicConv2d', 'OFAConv2d', 'DynamicLinear',
