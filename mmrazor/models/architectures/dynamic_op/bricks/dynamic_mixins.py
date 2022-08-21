@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional, Set, Tuple
 import torch
 from mmengine import print_log
 from torch import Tensor, nn
+from torch.nn import LayerNorm
 from torch.nn.modules.batchnorm import _BatchNorm
 
 from mmrazor.models.mutables.base_mutable import BaseMutable
@@ -305,7 +306,7 @@ class DynamicLayerNormMixin(DynamicChannelMixin):
             raise NotImplementedError
 
     def _register_mutable_num_features(
-            self: _BatchNorm, mutable_num_features: BaseMutable) -> None:
+            self: LayerNorm, mutable_num_features: BaseMutable) -> None:
         """Mutate ``num_features`` with given mutable.
 
         Args:
@@ -317,7 +318,7 @@ class DynamicLayerNormMixin(DynamicChannelMixin):
                 ``tracking_running_stats`` are False.
             ValueError: Error if size of mask if not same as ``num_features``.
         """
-        if not self.affine and not self.track_running_stats:
+        if not self.elementwise_affine:
             raise RuntimeError(
                 'num_features can not be mutated if both `affine` and '
                 '`tracking_running_stats` are False')
@@ -331,12 +332,10 @@ class DynamicLayerNormMixin(DynamicChannelMixin):
 
         self.mutable_attrs['num_features'] = mutable_num_features
 
-    def _get_num_features_mask(self: _BatchNorm) -> Optional[torch.Tensor]:
+    def _get_num_features_mask(self: LayerNorm) -> Optional[torch.Tensor]:
         """Get mask of ``num_features``"""
-        if self.affine:
+        if self.elementwise_affine:
             refer_tensor = self.weight
-        elif self.track_running_stats:
-            refer_tensor = self.running_mean
         else:
             return None
 
@@ -349,7 +348,7 @@ class DynamicLayerNormMixin(DynamicChannelMixin):
         return out_mask
 
     def get_dynamic_params(
-        self: _BatchNorm
+        self: LayerNorm
     ) -> Tuple[Optional[Tensor], Optional[Tensor], Optional[Tensor],
                Optional[Tensor]]:
         """Get dynamic parameters that will be used in forward process.
@@ -361,55 +360,42 @@ class DynamicLayerNormMixin(DynamicChannelMixin):
         """
         out_mask = self._get_num_features_mask()
 
-        if self.affine:
+        if self.elementwise_affine:
             weight = self.weight[out_mask]
             bias = self.bias[out_mask]
         else:
             weight, bias = self.weight, self.bias
 
-        if self.track_running_stats:
-            running_mean = self.running_mean[out_mask] \
-                if not self.training or self.track_running_stats else None
-            running_var = self.running_var[out_mask] \
-                if not self.training or self.track_running_stats else None
-        else:
-            running_mean, running_var = self.running_mean, self.running_var
+        return weight, bias
 
-        return running_mean, running_var, weight, bias
-
-    def to_static_op(self: _BatchNorm) -> nn.Module:
-        """Convert dynamic BatchNormxd to :obj:`torch.nn.BatchNormxd`.
+    def to_static_op(self: LayerNorm) -> nn.Module:
+        """Convert dynamic LayerNormxd to :obj:`torch.nn.LayerNormxd`.
 
         Returns:
-            torch.nn.BatchNormxd: :obj:`torch.nn.BatchNormxd` with sliced
+            torch.nn.LayerNormxd: :obj:`torch.nn.LayerNormxd` with sliced
                 parameters.
         """
         self.check_if_mutables_fixed()
 
-        running_mean, running_var, weight, bias = self.get_dynamic_params()
+        weight, bias = self.get_dynamic_params()
+
         if 'num_features' in self.mutable_attrs:
             num_features = self.mutable_attrs['num_features'].current_mask.sum(
             ).item()
         else:
             num_features = self.num_features
 
-        static_bn = self.static_op_factory(
-            num_features=num_features,
+        static_ln = self.static_op_factory(
+            normalized_shape=num_features,
             eps=self.eps,
-            momentum=self.momentum,
-            affine=self.affine,
-            track_running_stats=self.track_running_stats)
+            elementwise_affine=self.elementwise_affine)
 
-        if running_mean is not None:
-            static_bn.running_mean.copy_(running_mean)
-        if running_var is not None:
-            static_bn.running_var.copy_(running_var)
         if weight is not None:
-            static_bn.weight = nn.Parameter(weight)
+            static_ln.weight = nn.Parameter(weight)
         if bias is not None:
-            static_bn.bias = nn.Parameter(bias)
+            static_ln.bias = nn.Parameter(bias)
 
-        return static_bn
+        return static_ln
 
 
 class DynamicLinearMixin(DynamicChannelMixin):

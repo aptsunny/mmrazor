@@ -7,9 +7,9 @@ from torch import Tensor
 from torch.nn import LayerNorm
 from torch.nn.modules.batchnorm import _BatchNorm
 
-from mmrazor.models.mutables.base_mutable import BaseMutable
 from mmrazor.registry import MODELS
-from .dynamic_mixins import DynamicBatchNormMixin
+from mmrazor.models.mutables.base_mutable import BaseMutable
+from .dynamic_mixins import DynamicBatchNormMixin, DynamicLayerNormMixin
 
 
 class _DynamicBatchNorm(_BatchNorm, DynamicBatchNormMixin):
@@ -132,7 +132,7 @@ class DynamicBatchNorm3d(_DynamicBatchNorm):
 
 
 @NORM_LAYERS.register_module()
-class DynamicLayerNorm(LayerNorm, DynamicBatchNormMixin):
+class DynamicLayerNorm(LayerNorm, DynamicLayerNormMixin):
     """Applies Layer Normalization over a mini-batch of inputs according to the
     `mutable_num_channels` dynamically.
 
@@ -163,28 +163,15 @@ class DynamicLayerNorm(LayerNorm, DynamicBatchNormMixin):
     def mutate_num_channels(self, mutable_num_channels):
         self.mutable_num_channels = mutable_num_channels
 
-    @property
-    def mutable_in(self):
-        """Mutable `num_channels`."""
-        return self.mutable_num_channels
-
-    @property
-    def mutable_out(self):
-        """Mutable `num_channels`."""
-        return self.mutable_num_channels
-
     def forward(self, input: Tensor) -> Tensor:
         """Slice the parameters according to `mutable_num_channels`, and
         forward."""
-        if self.affine:
-            out_mask = self.mutable_num_channels.current_mask.to(
-                self.weight.device)
-            weight = self.weight[out_mask]
-            bias = self.bias[out_mask]
-        else:
-            weight, bias = self.weight, self.bias
+        self._check_input_dim(input)
 
-        return F.layer_norm(input, self.num_groups, weight, bias, self.eps)
+        weight, bias = self.get_dynamic_params()
+
+        return F.layer_norm(input, self.normalized_shape, weight, bias,
+                            self.eps)
 
     @property
     def static_op_factory(self):
