@@ -7,7 +7,7 @@ from mmcv.cnn.utils.weight_init import trunc_normal_
 from torch import Tensor
 
 from mmrazor.models.mutables.base_mutable import BaseMutable
-from ..base import ChannelDynamicOP
+from .dynamic_mixins import DynamicRelativePosition2DMixin
 
 
 class RelativePosition2D(nn.Module):
@@ -80,7 +80,8 @@ class RelativePosition2D(nn.Module):
         return embeddings
 
 
-class DynamicRelativePosition2D(RelativePosition2D, ChannelDynamicOP):
+class DynamicRelativePosition2D(RelativePosition2D,
+                                DynamicRelativePosition2DMixin):
     """Searchable RelativePosition module.
 
     Args:

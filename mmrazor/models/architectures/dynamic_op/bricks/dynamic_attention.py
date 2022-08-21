@@ -1,5 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-from typing import Optional, Tuple
+from typing import Dict
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -10,7 +10,7 @@ from torch import Tensor
 from mmrazor.models.architectures.dynamic_op.bricks.dynamic_relative_position import (
     DynamicRelativePosition2D, RelativePosition2D)
 from mmrazor.models.mutables.base_mutable import BaseMutable
-from ..base import DynamicOP
+from .dynamic_mixins import DynamicMHAMixin
 
 __all__ = ['MultiheadAttention', 'DynamicMultiheadAttention']
 
@@ -125,22 +125,19 @@ class MultiheadAttention(BaseModule):
         return x
 
 
-class DynamicMultiheadAttention(MultiheadAttention, DynamicOP):
+class DynamicMultiheadAttention(MultiheadAttention, DynamicMHAMixin):
     """Dynamic Multihead Attention with iRPE"""
 
-    accpeted_mutables = {
-        # 'mutable_head_dims', = embed_dims / num_heads
-        'mutable_num_heads',
-        'mutable_embed_dims',
+    accepted_mutable_attrs = {
+        # 'head_dims', = embed_dims / num_heads
+        'num_heads',
+        'embed_dims',
     }
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        self.mutable_num_heads: Optional[BaseMutable] = None
-        self.mutable_embed_dims: Optional[BaseMutable] = None
-        self.mutable_head_dims: Optional[BaseMutable] = None
-        # DerivedMutable
+        self.mutable_attrs: Dict[str, BaseMutable] = nn.ModuleDict()
 
         # dynamic image relative position encoding
         if self.relative_position:
@@ -149,56 +146,16 @@ class DynamicMultiheadAttention(MultiheadAttention, DynamicOP):
             self.rel_pos_embed_v = DynamicRelativePosition2D(
                 self.num_heads, self.max_relative_position)
 
-    def mutate_num_heads(self, mutable_num_heads):
-        self.mutable_num_heads = mutable_num_heads
+    @classmethod
+    def convert_from(cls, module):
+        dynamic_mha = cls(
+            embed_dims=module.embed_dims,
+            num_heads=module.num_heads,
+        )
+        return dynamic_mha
 
-    def mutate_embed_dims(self, mutable_embed_dims):
-        self.mutable_embed_dims = mutable_embed_dims
-
-    def mutate_head_dims(self, mutable_head_dims):
-        self.mutable_head_dims = mutable_head_dims
-
-    def _get_dynamic_proj_params(
-            self, w: nn.Linear) -> Tuple[Tensor, Optional[Tensor]]:
-        # TODO support mask later
-        if self.mutable_embed_dims is None:
-            return w.weight, w.bias
-
-        if self.mutable_embed_dims is not None:
-            in_features = self.mutable_embed_dims.current_choice.to(
-                self.weight.device)
-        else:
-            in_features = self.embed_dims
-
-        out_features = in_features
-
-        weight = self.weight[:out_features][:, in_features]
-        bias = self.bias[:out_features] if self.bias is not None else None
-
-        return weight, bias
-
-    def _get_dynamic_qkv_params(
-            self, w: nn.Linear) -> Tuple[Tensor, Optional[Tensor]]:
-        # TODO support mask later
-        if self.mutable_num_heads is None and self.mutable_embed_dims is None:
-            return w.weight, w.bias
-
-        if self.mutable_embed_dims is not None:
-            in_features = self.mutable_embed_dims.current_choice.to(
-                self.weight.device)
-        else:
-            in_features = self.embed_dims
-
-        if self.mutable_num_heads is not None:
-            out_features = self.mutable_num_heads * self.mutable_head_dims.to(
-                self.weight.device)
-        else:
-            out_features = self.num_heads * self.head_dims
-
-        weight = self.weight[:out_features][:, in_features]
-        bias = self.bias[:out_features] if self.bias is not None else None
-
-        return weight, bias
+    def static_op_factory(self):
+        return MultiheadAttention
 
     def forward(self, x: Tensor) -> Tensor:
         B, N = x.shape(0), x.shape1(1)
@@ -236,41 +193,3 @@ class DynamicMultiheadAttention(MultiheadAttention, DynamicOP):
         x = self.proj(x)
         x = self.proj_drop(x),
         return x
-
-    def to_static_op(self) -> nn.Module:
-        self.check_if_mutables_fixed()
-
-        embed_dims = self.mutable_embed_dims.current_choice
-        num_heads = self.mutable_num_heads.current_choice
-
-        q_w, q_b = self._get_dynamic_qkv_params(self.w_qs)
-        k_w, k_b = self._get_dynamic_qkv_params(self.k_qs)
-        v_w, v_b = self._get_dynamic_qkv_params(self.v_qs)
-
-        proj_w, proj_b = self._get_dynamic_proj_params(self.proj)
-
-        static_mha = MultiheadAttention(
-            embed_dims=embed_dims,
-            num_heads=num_heads,
-            input_dims=None,
-            attn_drop=self.attn_drop,
-            relative_position=self.relative_position,
-            max_relative_position=self.max_relative_position)
-
-        static_mha.w_qs.weight = nn.Parameter(q_w.clone())
-        static_mha.w_qs.bias = nn.Parameter(q_b.clone())
-
-        static_mha.w_ks.weight = nn.Parameter(k_w.clone())
-        static_mha.w_ks.bias = nn.Parameter(k_b.clone())
-
-        static_mha.w_vs.weight = nn.Parameter(v_w.clone())
-        static_mha.w_vs.bias = nn.Parameter(v_b.clone())
-
-        static_mha.proj.weight = nn.Parameter(proj_w.clone())
-        static_mha.proj.bias = nn.Parameter(proj_b.clone())
-
-        if self.relative_position:
-            static_mha.rel_pos_embed_k = self.rel_pos_embed_k.to_static_op()
-            static_mha.rel_pos_embed_v = self.rel_pos_embed_v.to_static_op()
-
-        return static_mha

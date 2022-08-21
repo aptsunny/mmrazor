@@ -10,6 +10,8 @@ from torch import Tensor, nn
 from torch.nn import LayerNorm
 from torch.nn.modules.batchnorm import _BatchNorm
 
+from mmrazor.models.architectures.dynamic_op.bricks.dynamic_attention import \
+    MultiheadAttention
 from mmrazor.models.architectures.dynamic_op.bricks.dynamic_relative_position import \
     RelativePosition2D
 from mmrazor.models.mutables.base_mutable import BaseMutable
@@ -608,7 +610,8 @@ class DynamicRelativePosition2DMixin(DynamicChannelMixin):
         'out_channels': 'head_dims',
     }
 
-    def register_mutable_attr(self, attr: str, mutable: BaseMutable):
+    def register_mutable_attr(self: MultiheadAttention, attr: str,
+                              mutable: BaseMutable):
         self.check_mutable_attr_valid(attr)
         if attr in self.attr_mappings:
             attr_map = self.attr_mappings[attr]
@@ -700,3 +703,132 @@ class DynamicRelativePosition2DMixin(DynamicChannelMixin):
                 self.embeddings_table_h[:, :self.current_head_dim].clone())
 
         return static_relative_position
+
+
+class DynamicMHAMixin(DynamicMixin):
+
+    accepted_mutable_attrs: Set[str] = {'num_heads', 'embed_dims'}
+
+    def register_mutable_attr(self: MultiheadAttention, attr: str,
+                              mutable: BaseMutable):
+
+        if attr == 'num_heads':
+            self._register_mutable_num_heads(mutable)
+        elif attr == 'embed_dims':
+            self._register_mutable_embed_dims(mutable)
+        else:
+            raise NotImplementedError
+
+    def _register_mutable_num_heads(self: MultiheadAttention,
+                                    mutable_num_heads):
+        assert hasattr(self, 'mutable_attrs')
+        current_choice = mutable_num_heads.current_choice
+        if current_choice > self.num_heads:
+            raise ValueError(
+                f'Expect value of mutable to be smaller or equal than '
+                f'{self.num_heads} as `num_heads`, but got: {current_choice}.')
+
+        self.mutable_attrs['num_heads'] = mutable_num_heads
+
+    def _register_mutable_embed_dims(self: MultiheadAttention,
+                                     mutable_embed_dims):
+        assert hasattr(self, 'mutable_attrs')
+        mask_size = mutable_embed_dims.current_mask.size(0)
+        if mask_size != self.embed_dims:
+            raise ValueError(
+                f'Expect mask size of mutable to be {self.embed_dims} as '
+                f'`embed_dims`, but got: {mask_size}.')
+
+        self.mutable_attrs['embed_dims'] = mutable_embed_dims
+
+    @property
+    def mutable_num_heads(self):
+        assert hasattr(self, 'mutable_attrs')
+        return self.mutable_attrs['num_heads']
+
+    @property
+    def mutable_embed_dims(self):
+        assert hasattr(self, 'mutable_attrs')
+        return self.mutable_attrs['embed_dims']
+
+    def _get_dynamic_proj_params(
+            self: MultiheadAttention,
+            w: nn.Linear) -> Tuple[Tensor, Optional[Tensor]]:
+        # TODO support mask later
+        if self.mutable_embed_dims is None:
+            return w.weight, w.bias
+
+        if self.mutable_embed_dims is not None:
+            in_features = self.mutable_embed_dims.current_choice.to(
+                self.weight.device)
+        else:
+            in_features = self.embed_dims
+
+        out_features = in_features
+
+        weight = self.weight[:out_features][:, in_features]
+        bias = self.bias[:out_features] if self.bias is not None else None
+
+        return weight, bias
+
+    def _get_dynamic_qkv_params(
+            self: MultiheadAttention,
+            w: nn.Linear) -> Tuple[Tensor, Optional[Tensor]]:
+        # TODO support mask later
+        if self.mutable_num_heads is None and self.mutable_embed_dims is None:
+            return w.weight, w.bias
+
+        if self.mutable_embed_dims is not None:
+            in_features = self.mutable_embed_dims.current_choice.to(
+                self.weight.device)
+        else:
+            in_features = self.embed_dims
+
+        if self.mutable_num_heads is not None:
+            out_features = self.mutable_num_heads * self.mutable_head_dims.to(
+                self.weight.device)
+        else:
+            out_features = self.num_heads * self.head_dims
+
+        weight = self.weight[:out_features][:, in_features]
+        bias = self.bias[:out_features] if self.bias is not None else None
+
+        return weight, bias
+
+    def to_static_op(self: MultiheadAttention) -> nn.Module:
+        self.check_if_mutables_fixed()
+
+        embed_dims = self.mutable_embed_dims.current_choice
+        num_heads = self.mutable_num_heads.current_choice
+
+        q_w, q_b = self._get_dynamic_qkv_params(self.w_qs)
+        k_w, k_b = self._get_dynamic_qkv_params(self.k_qs)
+        v_w, v_b = self._get_dynamic_qkv_params(self.v_qs)
+
+        proj_w, proj_b = self._get_dynamic_proj_params(self.proj)
+
+        static_mha = MultiheadAttention(
+            embed_dims=embed_dims,
+            num_heads=num_heads,
+            input_dims=None,
+            attn_drop=self.attn_drop,
+            relative_position=self.relative_position,
+            max_relative_position=self.max_relative_position)
+
+        static_mha.w_qs.weight = nn.Parameter(q_w.clone())
+        static_mha.w_qs.bias = nn.Parameter(q_b.clone())
+
+        static_mha.w_ks.weight = nn.Parameter(k_w.clone())
+        static_mha.w_ks.bias = nn.Parameter(k_b.clone())
+
+        static_mha.w_vs.weight = nn.Parameter(v_w.clone())
+        static_mha.w_vs.bias = nn.Parameter(v_b.clone())
+
+        static_mha.proj.weight = nn.Parameter(proj_w.clone())
+        static_mha.proj.bias = nn.Parameter(proj_b.clone())
+
+        if self.relative_position:
+            static_mha.rel_pos_embed_k = self.rel_pos_embed_k.to_static_op()
+            static_mha.rel_pos_embed_v = self.rel_pos_embed_v.to_static_op()
+
+        return static_mha
