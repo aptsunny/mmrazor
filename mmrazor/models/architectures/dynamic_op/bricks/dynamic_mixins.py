@@ -10,6 +10,8 @@ from torch import Tensor, nn
 from torch.nn import LayerNorm
 from torch.nn.modules.batchnorm import _BatchNorm
 
+from mmrazor.models.architectures.dynamic_op.bricks.dynamic_relative_position import \
+    RelativePosition2D
 from mmrazor.models.mutables.base_mutable import BaseMutable
 
 
@@ -273,7 +275,6 @@ class DynamicBatchNormMixin(DynamicChannelMixin):
         return static_bn
 
 
-# TODO
 class DynamicLayerNormMixin(DynamicChannelMixin):
     """A mixin class for Pytorch LayerNorm, which can mutate
     ``num_features``."""
@@ -597,3 +598,105 @@ class DynamicPatchEmbedMixin(DynamicChannelMixin):
         static_patch_embed.projection.bias = nn.Parameter(bias.clone())
 
         return static_patch_embed
+
+
+class DynamicRelativePosition2DMixin(DynamicChannelMixin):
+
+    accepted_mutable_attrs: Set[str] = {'head_dims'}
+    attr_mappings: Dict[str, str] = {
+        'in_channels': 'head_dims',
+        'out_channels': 'head_dims',
+    }
+
+    def register_mutable_attr(self, attr: str, mutable: BaseMutable):
+        self.check_mutable_attr_valid(attr)
+        if attr in self.attr_mappings:
+            attr_map = self.attr_mappings[attr]
+            assert attr_map in self.accepted_mutable_attrs
+            if attr_map in self.mutable_attrs:
+                print_log(
+                    f'{attr_map}({attr}) is already in `mutable_attrs`',
+                    level=logging.WARNING)
+            else:
+                self._register_mutable_attr(attr_map, mutable)
+        elif attr in self.accepted_mutable_attrs:
+            self._register_mutable_attr(attr, mutable)
+        else:
+            raise NotImplementedError
+
+    def _register_mutable_attr(self, attr, mutable):
+        if attr == 'head_dims':
+            self._registry_mutable_head_dims(mutable)
+        else:
+            raise NotImplementedError
+
+    def _registry_mutable_head_dims(self: RelativePosition2D,
+                                    mutable_head_dims: BaseMutable) -> None:
+        self.check_mutable_channels(mutable_head_dims)
+        mask_size = mutable_head_dims.current_mask.size(0)
+        if mask_size != self.head_dims:
+            raise ValueError(
+                f'Expect mask size of mutable to be {self.head_dims} as '
+                f'`head_dims`, but got: {mask_size}.')
+
+        self.mutable_attrs['head_dims'] = mutable_head_dims
+
+    def forward_mixin(self: RelativePosition2D, length_q, length_k) -> Tensor:
+        if self.mutable_head_dims is None:
+            self.current_head_dim = self.head_dims
+        else:
+            self.current_head_dim = self.mutable_head_dims.current_choice
+
+        self.sample_eb_table_h = self.embeddings_table_h[:, :self.
+                                                         current_head_dim]
+        self.sample_eb_table_v = self.embeddings_table_v[:, :self.
+                                                         current_head_dim]
+
+        # remove the first cls token distance computation
+        length_q = length_q - 1
+        length_k = length_k - 1
+        range_vec_q = torch.arange(length_q)
+        range_vec_k = torch.arange(length_k)
+        # compute the row and column distance
+        distance_mat_v = (
+            range_vec_k[None, :] // int(length_q**0.5) -
+            range_vec_q[:, None] // int(length_q**0.5))
+        distance_mat_h = (
+            range_vec_k[None, :] % int(length_q**0.5) -
+            range_vec_q[:, None] % int(length_q**0.5))
+        distance_mat_clipped_v = torch.clamp(distance_mat_v,
+                                             -self.max_relative_position,
+                                             self.max_relative_position)
+        distance_mat_clipped_h = torch.clamp(distance_mat_h,
+                                             -self.max_relative_position,
+                                             self.max_relative_position)
+
+        final_mat_v = distance_mat_clipped_v + self.max_relative_position + 1
+        final_mat_h = distance_mat_clipped_h + self.max_relative_position + 1
+        # pad the 0 which represent the cls token
+        final_mat_v = torch.nn.functional.pad(final_mat_v, (1, 0, 1, 0),
+                                              'constant', 0)
+        final_mat_h = torch.nn.functional.pad(final_mat_h, (1, 0, 1, 0),
+                                              'constant', 0)
+
+        final_mat_v = torch.LongTensor(final_mat_v)
+        final_mat_h = torch.LongTensor(final_mat_h)
+        # get the embeddings with the corresponding distance
+
+        embeddings = self.sample_eb_table_v[final_mat_v] + \
+            self.sample_eb_table_h[final_mat_h]
+
+        return embeddings
+
+    def to_static_op(self: RelativePosition2D) -> nn.Module:
+        self.check_if_mutables_fixed()
+
+        static_relative_position = RelativePosition2D(self.current_head_dim)
+        static_relative_position.embeddings_table_v = \
+            nn.Parameter(
+                self.embeddings_table_v[:, :self.current_head_dim].clone())
+        static_relative_position.embeddings_table_h = \
+            nn.Parameter(
+                self.embeddings_table_h[:, :self.current_head_dim].clone())
+
+        return static_relative_position
