@@ -86,9 +86,9 @@ class TransformerEncoderLayer(BaseBackbone):
         self.attn.register_mutable_attr('embed_dims', mutable_embed_dims)
         self.attn.register_mutable_attr('num_heads', mutable_num_heads)
         self.attn.rel_pos_embed_k.register_mutable_attr(
-            'head_dims', mutable_embed_dims / mutable_num_heads)
+            'head_dims', mutable_embed_dims // mutable_num_heads)
         self.attn.rel_pos_embed_v.register_mutable_attr(
-            'head_dims', mutable_embed_dims / mutable_num_heads)
+            'head_dims', mutable_embed_dims // mutable_num_heads)
 
         # handle the mutable of the second dynamic LN
         self.norm2.register_mutable_attr('num_features', mutable_embed_dims)

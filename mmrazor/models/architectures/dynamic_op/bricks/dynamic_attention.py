@@ -46,9 +46,9 @@ class DynamicMultiheadAttention(MultiheadAttention, DynamicMHAMixin):
 
     def forward(self, x: Tensor) -> Tensor:
         B, N = x.shape[0], x.shape[1]
-        embed_dims = self.mutable_embed_dims.current_choice
-        num_heads = self.mutable_num_heads.current_choice
-        head_dims = embed_dims // num_heads
+        embed_dims = self.mutable_embed_dims.current_choice  # 624
+        num_heads = self.mutable_num_heads.current_choice  # 10
+        head_dims = embed_dims // num_heads  # 62
 
         q_w, q_b = self._get_dynamic_qkv_params(self.w_qs)
         k_w, k_b = self._get_dynamic_qkv_params(self.w_ks)
@@ -57,19 +57,25 @@ class DynamicMultiheadAttention(MultiheadAttention, DynamicMHAMixin):
         q = F.linear(x, q_w, q_b).view(B, N, num_heads, head_dims)
         k = F.linear(x, k_w, k_b).view(B, N, num_heads, head_dims)
         v = F.linear(x, v_w, v_b).view(B, N, num_heads, head_dims)
+        import pdb
+        pdb.set_trace()
 
         q, k, v = q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2)
 
+        # v.shape: [8, 10, 197, 62]
+        # x.shape: [8, 197, 624]
+
         attn = (q @ k.transpose(-2, -1)) * self.scale
+        # attn.shape: [8, 10, 197, 197]
 
         if self.relative_position:
-            r_p_k = self.rel_pos_embed_k(N, N)
+            r_p_k = self.rel_pos_embed_k(N, N)  # 197, 197, 62
             attn = attn + (q.permute(2, 0, 1, 3).reshape(N, num_heads * B, -1)  # noqa: E501
                            @ r_p_k.transpose(2, 1)) \
                 .transpose(1, 0).reshape(B, num_heads, N, N) * self.scale
 
         attn = attn.softmax(dim=-1)
-        attn = self.attn_drop(attn)
+        attn = self.attn_drop(attn)  # 8, 197, 620
         x = (attn @ v).transpose(1, 2).reshape(B, N, -1)
 
         if self.relative_position:
@@ -78,6 +84,9 @@ class DynamicMultiheadAttention(MultiheadAttention, DynamicMHAMixin):
             x = x + (attn_1 @ r_p_v).transpose(1, 0).reshape(
                 B, num_heads, N, -1).transpose(2, 1).reshape(B, N, -1)
 
+        print('dynamic mha forward x.shape : ', x.shape)
+        # [8, 197, 620]
+
         x = self.proj(x)
-        x = self.proj_drop(x),
+        x = self.proj_drop(x)
         return x

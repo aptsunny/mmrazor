@@ -641,11 +641,10 @@ class DynamicRelativePosition2DMixin(DynamicChannelMixin):
                                     mutable_head_dims: BaseMutable) -> None:
         self.check_mutable_channels(mutable_head_dims)
         mask_size = mutable_head_dims.current_mask.size(0)
-        # TODO
-        # if mask_size != self.head_dims:
-        #     raise ValueError(
-        #         f'Expect mask size of mutable to be {self.head_dims} as '
-        #         f'`head_dims`, but got: {mask_size}.')
+        if mask_size != self.head_dims:
+            raise ValueError(
+                f'Expect mask size of mutable to be {self.head_dims} as '
+                f'`head_dims`, but got: {mask_size}.')
 
         self.mutable_attrs['head_dims'] = mutable_head_dims
 
@@ -699,6 +698,7 @@ class DynamicRelativePosition2DMixin(DynamicChannelMixin):
     def to_static_op(self: RelativePosition2D) -> nn.Module:
         self.check_if_mutables_fixed()
 
+        self.current_head_dim = self.mutable_head_dims.current_choice
         static_relative_position = RelativePosition2D(self.current_head_dim)
         static_relative_position.embeddings_table_v = \
             nn.Parameter(

@@ -212,15 +212,6 @@ class OneShotMutableChannel(MutableChannel[int, Dict]):
             assert len(other) == 2
             return self.derive_divide_mutable(*other)
 
-        raise TypeError(f'Unsupported type {type(other)} for div!')
-
-    def __truediv__(self, other) -> DerivedMutable:
-        if isinstance(other, int):
-            return self.derive_divide_mutable(other)
-        if isinstance(other, tuple):
-            assert len(other) == 2
-            return self.derive_divide_mutable(*other)
-
         from ..mutable_value import OneShotMutableValue
         if isinstance(other, OneShotMutableValue):
             ratio = other.current_choice
