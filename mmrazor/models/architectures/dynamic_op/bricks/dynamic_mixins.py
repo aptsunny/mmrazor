@@ -283,6 +283,11 @@ class DynamicLayerNormMixin(DynamicChannelMixin):
         'out_channels': 'num_features',
     }
 
+    @property
+    def mutable_num_features(self):
+        assert hasattr(self, 'mutable_attrs')
+        return self.mutable_attrs['num_features']
+
     def register_mutable_attr(self, attr, mutable):
         self.check_mutable_attr_valid(attr)
         if attr in self.attr_mappings:
@@ -343,7 +348,7 @@ class DynamicLayerNormMixin(DynamicChannelMixin):
             return None
 
         if 'num_features' in self.mutable_attrs:
-            out_mask = self.mutable_attrs['num_features'].current_mask.to(
+            out_mask = self.mutable_num_features.current_mask.to(
                 refer_tensor.device)
         else:
             out_mask = torch.ones_like(refer_tensor).bool()
@@ -392,9 +397,9 @@ class DynamicLayerNormMixin(DynamicChannelMixin):
             elementwise_affine=self.elementwise_affine)
 
         if weight is not None:
-            static_ln.weight = nn.Parameter(weight)
+            static_ln.weight = nn.Parameter(weight.clone())
         if bias is not None:
-            static_ln.bias = nn.Parameter(bias)
+            static_ln.bias = nn.Parameter(bias.clone())
 
         return static_ln
 
