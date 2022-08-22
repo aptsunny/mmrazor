@@ -1,23 +1,25 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-from typing import Iterator, Optional, Sequence
+from typing import Dict, Iterator, Optional, Sequence
 
+import torch.nn as nn
 from mmengine.model import Sequential
 from torch import Tensor
 from torch.nn import Module
 
 from mmrazor.models.mutables import DerivedMutable, MutableValue
 from mmrazor.models.mutables.base_mutable import BaseMutable
-from ..base import DynamicOP
+from .dynamic_mixins import DynamicSequentialMixin
 
 
-class DynamicSequential(Sequential, DynamicOP):
-    accpeted_mutables = {'mutable_depth'}
+class DynamicSequential(Sequential, DynamicSequentialMixin):
+    accepted_mutable_attrs = {'depth'}
+
     forward_ignored_module = (MutableValue, DerivedMutable)
 
     def __init__(self, *args, init_cfg: Optional[dict] = None):
         super().__init__(*args, init_cfg=init_cfg)
 
-        self.mutable_depth: Optional[BaseMutable] = None
+        self.mutable_attrs: Dict[str, BaseMutable] = nn.ModuleDict()
 
     def mutate_depth(self,
                      mutable_depth: BaseMutable,
@@ -26,6 +28,7 @@ class DynamicSequential(Sequential, DynamicOP):
             depth_seq = getattr(mutable_depth, 'choices')
         if depth_seq is None:
             raise ValueError('depth sequence must be provided')
+
         depth_list = list(sorted(depth_seq))
         if depth_list[-1] != len(self):
             raise ValueError(f'Expect max depth to be: {len(self)}, '
@@ -62,25 +65,3 @@ class DynamicSequential(Sequential, DynamicOP):
             if isinstance(module, self.forward_ignored_module):
                 continue
             yield module
-
-    def to_static_op(self) -> Sequential:
-        self.check_if_mutables_fixed()
-
-        if self.mutable_depth is None:
-            fixed_depth = len(self)
-        else:
-            fixed_depth = self.get_current_choice(self.mutable_depth)
-
-        modules = []
-        passed_module_nums = 0
-        for module in self:
-            if isinstance(module, self.forward_ignored_module):
-                continue
-            else:
-                passed_module_nums += 1
-            if passed_module_nums > fixed_depth:
-                break
-
-            modules.append(module)
-
-        return Sequential(*modules)

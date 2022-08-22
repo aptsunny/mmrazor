@@ -7,7 +7,7 @@ import torch
 from mmcls.models.utils import PatchEmbed
 from mmengine import print_log
 from torch import Tensor, nn
-from torch.nn import LayerNorm
+from torch.nn import LayerNorm, Sequential
 from torch.nn.modules.batchnorm import _BatchNorm
 
 from mmrazor.models.mutables.base_mutable import BaseMutable
@@ -842,3 +842,60 @@ class DynamicMHAMixin(DynamicMixin):
             static_mha.rel_pos_embed_v = self.rel_pos_embed_v.to_static_op()
 
         return static_mha
+
+
+class DynamicSequentialMixin(DynamicMixin):
+
+    accepted_mutable_attrs: Set[str] = {'depth'}
+
+    @property
+    def mutable_depth(self):
+        assert hasattr(self, 'mutable_attrs')
+        return self.mutable_attrs['depth']
+
+    def register_mutable_attr(self: Sequential, attr: str,
+                              mutable: BaseMutable):
+        if attr == 'depth':
+            self._register_mutable_depth(mutable)
+        else:
+            raise NotImplementedError
+
+    def _register_mutable_depth(self, mutable_depth: BaseMutable):
+        assert hasattr(self, 'mutable_attrs')
+        current_depth = mutable_depth.current_choice
+        if current_depth > len(self._modules):
+            raise ValueError(
+                f'Expect depth of mutable to be smaller than {len(self._modules)} as '
+                f'`depth`, but got: {current_depth}.')
+        self.mutable_attrs['depth'] = mutable_depth
+
+    @property
+    def static_op_factory(self):
+        return Sequential
+
+    def to_static_op(self) -> Sequential:
+        self.check_if_mutables_fixed()
+
+        if self.mutable_depth is None:
+            fixed_depth = len(self)
+        else:
+            fixed_depth = self.get_current_choice(self.mutable_depth)
+
+        modules = []
+        passed_module_nums = 0
+        for module in self:
+            if isinstance(module, self.forward_ignored_module):
+                continue
+            else:
+                passed_module_nums += 1
+            if passed_module_nums > fixed_depth:
+                break
+
+            modules.append(module)
+
+        return Sequential(*modules)
+
+    @classmethod
+    def convert_from(cls, module: Sequential):
+        dynamic_m = cls(module._modules)
+        return dynamic_m
