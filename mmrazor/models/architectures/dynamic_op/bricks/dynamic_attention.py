@@ -29,9 +29,9 @@ class DynamicMultiheadAttention(MultiheadAttention, DynamicMHAMixin):
         # dynamic image relative position encoding
         if self.relative_position:
             self.rel_pos_embed_k = DynamicRelativePosition2D(
-                self.num_heads, self.max_relative_position)
+                self.head_dims, self.max_relative_position)
             self.rel_pos_embed_v = DynamicRelativePosition2D(
-                self.num_heads, self.max_relative_position)
+                self.head_dims, self.max_relative_position)
 
     @classmethod
     def convert_from(cls, module):
@@ -45,17 +45,18 @@ class DynamicMultiheadAttention(MultiheadAttention, DynamicMHAMixin):
         return MultiheadAttention
 
     def forward(self, x: Tensor) -> Tensor:
-        B, N = x.shape(0), x.shape1(1)
-        num_heads = self.mutable_num_heads.current_choice.to(
-            self.weight.device)
+        B, N = x.shape[0], x.shape[1]
+        embed_dims = self.mutable_embed_dims.current_choice
+        num_heads = self.mutable_num_heads.current_choice
+        head_dims = embed_dims // num_heads
 
-        q_w, q_b = self._get_dynamic_params(self.w_qs)
-        k_w, k_b = self._get_dynamic_params(self.k_qs)
-        v_w, v_b = self._get_dynamic_params(self.v_qs)
+        q_w, q_b = self._get_dynamic_qkv_params(self.w_qs)
+        k_w, k_b = self._get_dynamic_qkv_params(self.w_ks)
+        v_w, v_b = self._get_dynamic_qkv_params(self.w_vs)
 
-        q = F.linear(x, q_w, q_b).view(B, N, num_heads, self.unit)
-        k = F.linear(x, k_w, k_b).view(B, N, num_heads, self.unit)
-        v = F.linear(x, v_w, v_b).view(B, N, num_heads, self.unit)
+        q = F.linear(x, q_w, q_b).view(B, N, num_heads, head_dims)
+        k = F.linear(x, k_w, k_b).view(B, N, num_heads, head_dims)
+        v = F.linear(x, v_w, v_b).view(B, N, num_heads, head_dims)
 
         q, k, v = q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2)
 

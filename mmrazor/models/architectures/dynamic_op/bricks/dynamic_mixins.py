@@ -326,10 +326,12 @@ class DynamicLayerNormMixin(DynamicChannelMixin):
 
         self.check_mutable_channels(mutable_num_features)
         mask_size = mutable_num_features.current_mask.size(0)
-        if mask_size != self.num_features:
+
+        # normalized_shape is a tuple
+        if mask_size != self.normalized_shape[0]:
             raise ValueError(
-                f'Expect mask size of mutable to be {self.num_features} as '
-                f'`num_features`, but got: {mask_size}.')
+                f'Expect mask size of mutable to be {self.normalized_shape} as '
+                f'`normalized_shape`, but got: {mask_size}.')
 
         self.mutable_attrs['num_features'] = mutable_num_features
 
@@ -567,7 +569,7 @@ class DynamicPatchEmbedMixin(DynamicChannelMixin):
 
         self.mutable_attrs['embed_dims'] = mutable_patch_embedding
 
-    def _get_embed_dims_mask(self: PatchEmbed) -> Optional[torch.Tensor]:
+    def _get_dynamic_params(self: PatchEmbed) -> Optional[torch.Tensor]:
         """Get mask of ``embed_dims``"""
         if 'embed_dims' not in self.mutable_attrs:
             return self.projection.weight, self.projection.bias
@@ -639,10 +641,11 @@ class DynamicRelativePosition2DMixin(DynamicChannelMixin):
                                     mutable_head_dims: BaseMutable) -> None:
         self.check_mutable_channels(mutable_head_dims)
         mask_size = mutable_head_dims.current_mask.size(0)
-        if mask_size != self.head_dims:
-            raise ValueError(
-                f'Expect mask size of mutable to be {self.head_dims} as '
-                f'`head_dims`, but got: {mask_size}.')
+        # TODO
+        # if mask_size != self.head_dims:
+        #     raise ValueError(
+        #         f'Expect mask size of mutable to be {self.head_dims} as '
+        #         f'`head_dims`, but got: {mask_size}.')
 
         self.mutable_attrs['head_dims'] = mutable_head_dims
 
@@ -761,15 +764,14 @@ class DynamicMHAMixin(DynamicMixin):
             return w.weight, w.bias
 
         if self.mutable_embed_dims is not None:
-            in_features = self.mutable_embed_dims.current_choice.to(
-                self.weight.device)
+            in_features = self.mutable_embed_dims.current_choice
         else:
             in_features = self.embed_dims
 
         out_features = in_features
 
-        weight = self.weight[:out_features][:, in_features]
-        bias = self.bias[:out_features] if self.bias is not None else None
+        weight = w.weight[:out_features][:in_features]
+        bias = w.bias[:out_features] if w.bias is not None else None
 
         return weight, bias
 
@@ -781,19 +783,17 @@ class DynamicMHAMixin(DynamicMixin):
             return w.weight, w.bias
 
         if self.mutable_embed_dims is not None:
-            in_features = self.mutable_embed_dims.current_choice.to(
-                self.weight.device)
+            in_features = self.mutable_embed_dims.current_choice
         else:
             in_features = self.embed_dims
 
         if self.mutable_num_heads is not None:
-            out_features = self.mutable_num_heads * self.mutable_head_dims.to(
-                self.weight.device)
+            out_features = self.mutable_embed_dims.current_choice
         else:
             out_features = self.num_heads * self.head_dims
 
-        weight = self.weight[:out_features][:, in_features]
-        bias = self.bias[:out_features] if self.bias is not None else None
+        weight = w.weight[:out_features][:in_features]
+        bias = w.bias[:out_features] if w.bias is not None else None
 
         return weight, bias
 

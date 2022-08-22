@@ -49,11 +49,6 @@ class TransformerEncoderLayer(BaseBackbone):
         self.num_heads = num_heads
         self.mlp_ratio = mlp_ratio
 
-        # mutable settings
-        self.mutable_embed_dims: Optional[BaseMutable] = None
-        self.mutable_num_heads: Optional[BaseMutable] = None
-        self.mutable_mlp_ratios: Optional[BaseMutable] = None
-
         self.norm1_name, norm1 = build_norm_layer(norm_cfg, self.embed_dims)
         self.add_module(self.norm1_name, norm1)
         self.attn = DynamicMultiheadAttention(
@@ -67,7 +62,7 @@ class TransformerEncoderLayer(BaseBackbone):
         self.add_module(self.norm2_name, norm2)
 
         # derived mutable
-        self.middle_channels = embed_dims * mlp_ratio
+        self.middle_channels = int(self.embed_dims * self.mlp_ratio)
         self.fc1 = DynamicLinear(embed_dims, self.middle_channels)
         self.fc2 = DynamicLinear(self.middle_channels, embed_dims)
         self.act = build_activation_layer(act_cfg)
@@ -83,10 +78,6 @@ class TransformerEncoderLayer(BaseBackbone):
     def mutate_encoder_layer(self, mutable_embed_dims: BaseMutable,
                              mutable_num_heads: BaseMutable,
                              mutable_mlp_ratios: BaseMutable):
-        # mutate embed,head,ratio
-        self.mutable_embed_dims = mutable_embed_dims
-        self.mutable_num_heads = mutable_num_heads
-        self.mutable_mlp_ratios = mutable_mlp_ratios
 
         # handle the mutable of the first dynamic LN
         self.norm1.register_mutable_attr('num_features', mutable_embed_dims)
@@ -94,20 +85,21 @@ class TransformerEncoderLayer(BaseBackbone):
         # handle the mutable in multihead attention
         self.attn.register_mutable_attr('embed_dims', mutable_embed_dims)
         self.attn.register_mutable_attr('num_heads', mutable_num_heads)
+        self.attn.rel_pos_embed_k.register_mutable_attr(
+            'head_dims', mutable_embed_dims / mutable_num_heads)
+        self.attn.rel_pos_embed_v.register_mutable_attr(
+            'head_dims', mutable_embed_dims / mutable_num_heads)
 
         # handle the mutable of the second dynamic LN
-        self.norm2.register_mutable_attr(
-            'num_features', mutable_embed_dims.derive_same_mutable())
+        self.norm2.register_mutable_attr('num_features', mutable_embed_dims)
 
         # handle the mutable of FFN
+        # mutable channel x mutable value
         self.middle_channels = mutable_embed_dims * mutable_mlp_ratios
-        self.fc1.register_mutable_attr(
-            'in_channels', mutable_embed_dims.derive_same_mutable())
+        self.fc1.register_mutable_attr('in_channels', mutable_embed_dims)
         self.fc1.register_mutable_attr('out_channels', self.middle_channels)
-        self.fc2.register_mutable_attr(
-            'in_channels', self.middle_channels.derive_same_mutable())
-        self.fc2.register_mutable_attr(
-            'out_channels', mutable_embed_dims.derive_same_mutable())
+        self.fc2.register_mutable_attr('in_channels', self.middle_channels)
+        self.fc2.register_mutable_attr('out_channels', mutable_embed_dims)
 
     def forward(self, x: Tensor) -> Tensor:
         residual = x
@@ -176,10 +168,7 @@ class Autoformer(BaseBackbone):
         self.patch_embed = DynamicPatchEmbed(
             img_size=self.img_size,
             in_channels=self.in_channels,
-            embed_dims=self.embed_dims,
-            norm_cfg=norm_cfg,
-            conv_cfg=conv_cfg,
-            init_cfg=init_cfg)
+            embed_dims=self.embed_dims)
 
         # mutable variables of autoformer
         self.mutable_embed_dims = OneShotMutableChannel(
@@ -206,10 +195,10 @@ class Autoformer(BaseBackbone):
 
         # main body
         self.blocks = self.make_layers(
-            embed_dims=max(self.embed_dim_range),
-            num_heads=max(self.num_head_range),
-            mlp_ratios=max(self.mlp_ratio_range),
-            depth=max(self.depth_range))
+            embed_dims=self.embed_dims,
+            num_heads=self.num_heads,
+            mlp_ratios=self.mlp_ratios,
+            depth=self.depth)
 
         self.final_norm = final_norm
         if self.final_norm:
@@ -218,6 +207,10 @@ class Autoformer(BaseBackbone):
             self.add_module(self.norm1_name, norm1)
 
         self.mutate()
+
+    @property
+    def norm1(self):
+        return getattr(self, self.norm1_name)
 
     def make_layers(self, embed_dims, num_heads, mlp_ratios, depth):
         layers = []
@@ -244,20 +237,25 @@ class Autoformer(BaseBackbone):
         for i in range(self.depth):  # max depth here
             layer = self.blocks[i]
 
-            derived_embed_dim = self.last_mutable_embed_dim.derive_same_mutable(
-            )  # noqa: E501
+            mutable_embed_dims = OneShotMutableChannel(
+                num_channels=self.embed_dims,
+                candidate_mode='number',
+                candidate_choices=self.embed_dim_range)
+            mutable_num_heads = OneShotMutableValue(
+                value_list=self.num_head_range, default_value=self.num_heads)
+            mutable_mlp_ratios = OneShotMutableValue(
+                value_list=self.mlp_ratio_range, default_value=self.mlp_ratios)
 
             layer.mutate_encoder_layer(
-                mutable_embed_dims=derived_embed_dim,
-                mutable_num_heads=self.mutable_num_heads.derive_same_mutable(),
-                mutable_mlp_ratios=self.mutable_mlp_ratios.derive_same_mutable(
-                ))
+                mutable_embed_dims=mutable_embed_dims,
+                mutable_num_heads=mutable_num_heads,
+                mutable_mlp_ratios=mutable_mlp_ratios)
 
-            self.last_mutable_embed_dim = derived_embed_dim
+            self.last_mutable_embed_dim = mutable_embed_dims
 
         # handle the mutable of final norm
         if self.final_norm:
-            self.final_norm.register_mutable_attr(
+            self.norm1.register_mutable_attr(
                 'num_features',
                 self.last_mutable_embed_dim.derive_same_mutable())
 
@@ -279,7 +277,7 @@ class Autoformer(BaseBackbone):
 
         x = F.dropout(x, p=self.dropout)
 
-        x = x + self.pos_embed()
+        x = x + self.pos_embed
 
         # dynamic depth
         for i, block in enumerate(self.blocks):
