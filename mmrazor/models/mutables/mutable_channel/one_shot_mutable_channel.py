@@ -222,6 +222,7 @@ class OneShotMutableChannel(MutableChannel[int, Dict]):
 
         from ..mutable_value import OneShotMutableValue
         if isinstance(other, OneShotMutableValue):
-            return DerivedMutable()
+            ratio = other.current_choice
+            return self.derive_divide_mutable(ratio)
 
         raise TypeError(f'Unsupported type {type(other)} for div!')
