@@ -40,12 +40,11 @@ class DynamicPatchEmbed(PatchEmbed, DynamicPatchEmbedMixin):
 
         dynamic_patch_embed = cls(
             img_size=module.img_size,
-            in_channels=3,  # TODO
+            in_channels=3,
             embed_dims=module.embed_dims,
             norm_cfg=None,
             conv_cfg=None,
-            # TODO
-        )
+            init_cfg=None)
 
         return dynamic_patch_embed
 

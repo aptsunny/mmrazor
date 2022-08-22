@@ -1,11 +1,9 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-import copy
 import unittest
 from unittest import TestCase
 
-from mmrazor.models.architectures.dynamic_op import (DynamicRelativePosition2D,
-                                                     RelativePosition2D)
-from mmrazor.models.mutables import OneShotMutableChannel, mutable_channel
+from mmrazor.models.architectures.dynamic_op import DynamicRelativePosition2D
+from mmrazor.models.mutables import OneShotMutableChannel
 
 
 class TestDynamicRP(TestCase):
