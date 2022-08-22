@@ -1,5 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Union
 
 import torch
 import torch.nn as nn

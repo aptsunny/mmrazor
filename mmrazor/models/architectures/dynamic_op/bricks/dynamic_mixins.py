@@ -535,6 +535,11 @@ class DynamicPatchEmbedMixin(DynamicChannelMixin):
         'out_channels': 'embed_dims'
     }
 
+    @property
+    def mutable_embed_dims(self):
+        assert hasattr(self, 'mutable_attrs')
+        return self.mutable_attrs['embed_dims']
+
     def register_mutable_attr(self: PatchEmbed, attr: str,
                               mutable: BaseMutable):
         self.check_mutable_attr_valid(attr)
@@ -574,8 +579,7 @@ class DynamicPatchEmbedMixin(DynamicChannelMixin):
         if 'embed_dims' not in self.mutable_attrs:
             return self.projection.weight, self.projection.bias
         else:
-            mutable_embed_dims = self.mutable_attrs['embed_dims']
-            out_mask = mutable_embed_dims.current_mask.to(
+            out_mask = self.mutable_embed_dims.current_mask.to(
                 self.projection.weight.device)
             weight = self.projection.weight[out_mask][:]
             bias = self.projection.bias[
@@ -586,14 +590,13 @@ class DynamicPatchEmbedMixin(DynamicChannelMixin):
     def to_static_op(self: PatchEmbed) -> nn.Module:
 
         self.check_if_mutables_fixed()
-        assert self.mutable_embed_dim is not None
+        assert self.mutable_embed_dims is not None
 
         weight, bias = self._get_dynamic_params()
-        static_patch_embed = PatchEmbed(
+        static_patch_embed = self.static_op_factory(
             img_size=self.img_size,
-            in_channels=self.in_channels,
-            embed_dims=sum(self.mutable_embed_dim.current_choice.item()),
-            conv_cfg=self.conv_cfg)
+            in_channels=3,
+            embed_dims=self.mutable_embed_dims.current_choice)
 
         static_patch_embed.projection.weight = nn.Parameter(weight.clone())
         static_patch_embed.projection.bias = nn.Parameter(bias.clone())
