@@ -110,7 +110,7 @@ class MultiheadAttention(BaseModule):
                  embed_dims,
                  num_heads,
                  input_dims=None,
-                 attn_drop=0.,
+                 attn_drop_rate=0.,
                  proj_drop=0.,
                  dropout_layer=dict(type='Dropout', drop_prob=0.),
                  relative_position=True,
@@ -128,6 +128,7 @@ class MultiheadAttention(BaseModule):
         self.v_shortcut = v_shortcut
         self.relative_position = relative_position
         self.max_relative_position = max_relative_position
+        self.attn_drop_rate = attn_drop_rate
 
         self.head_dims = embed_dims // num_heads  # unit
         self.scale = qk_scale or self.head_dims**-0.5
@@ -139,7 +140,7 @@ class MultiheadAttention(BaseModule):
         self.w_vs = nn.Linear(
             self.input_dims, num_heads * self.head_dims, bias=qkv_bias)
 
-        self.attn_drop = nn.Dropout(attn_drop)
+        self.attn_drop = nn.Dropout(attn_drop_rate)
         self.proj = nn.Linear(embed_dims, embed_dims, bias=proj_bias)
         self.proj_drop = nn.Dropout(proj_drop)
         self.out_drop = DROPOUT_LAYERS.build(dropout_layer)

@@ -1,14 +1,12 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import unittest
 from unittest import TestCase
-import pytest 
 
-from mmrazor.models.architectures.dynamic_op import DynamicSequential
-
+import pytest
+import torch.nn as nn
 from torch.nn import Sequential
 
-import torch.nn as nn
-
+from mmrazor.models.architectures.dynamic_op import DynamicSequential
 from mmrazor.models.mutables import OneShotMutableValue
 
 
@@ -28,24 +26,22 @@ class TestDynamicSequential(TestCase):
         self.dynamic_m.register_mutable_attr('depth', mutable_depth)
 
     def test_init(self) -> None:
-        self.assertEqual(self.dynamic_m.get_mutable_attr('depth').current_choice, 3)
+        self.assertEqual(
+            self.dynamic_m.get_mutable_attr('depth').current_choice, 3)
 
     def test_to_static_op(self) -> None:
         with pytest.raises(RuntimeError):
             self.dynamic_m.to_static_op()
-        
+
         current_mutable = self.dynamic_m.get_mutable_attr('depth')
         current_mutable.fix_chosen(current_mutable.dump_chosen())
-        
+
         static_op = self.dynamic_m.to_static_op()
         self.assertIsNotNone(static_op)
 
     def test_convert_from(self) -> None:
         static_m = Sequential(*self.layers)
-        
+
         dynamic_m = DynamicSequential.convert_from(static_m)
-        
+
         self.assertIsNotNone(dynamic_m)
-        
-        
-        

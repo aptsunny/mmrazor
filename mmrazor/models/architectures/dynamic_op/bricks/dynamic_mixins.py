@@ -812,8 +812,8 @@ class DynamicMHAMixin(DynamicMixin):
         num_heads = self.mutable_num_heads.current_choice
 
         q_w, q_b = self._get_dynamic_qkv_params(self.w_qs)
-        k_w, k_b = self._get_dynamic_qkv_params(self.k_qs)
-        v_w, v_b = self._get_dynamic_qkv_params(self.v_qs)
+        k_w, k_b = self._get_dynamic_qkv_params(self.w_ks)
+        v_w, v_b = self._get_dynamic_qkv_params(self.w_vs)
 
         proj_w, proj_b = self._get_dynamic_proj_params(self.proj)
 
@@ -821,7 +821,7 @@ class DynamicMHAMixin(DynamicMixin):
             embed_dims=embed_dims,
             num_heads=num_heads,
             input_dims=None,
-            attn_drop=self.attn_drop,
+            attn_drop_rate=self.attn_drop_rate,
             relative_position=self.relative_position,
             max_relative_position=self.max_relative_position)
 
