@@ -24,8 +24,10 @@ class DynamicSequential(Sequential, DynamicSequentialMixin):
     def mutate_depth(self,
                      mutable_depth: BaseMutable,
                      depth_seq: Optional[Sequence[int]] = None) -> None:
+
         if depth_seq is None:
             depth_seq = getattr(mutable_depth, 'choices')
+
         if depth_seq is None:
             raise ValueError('depth sequence must be provided')
 
@@ -47,18 +49,12 @@ class DynamicSequential(Sequential, DynamicSequentialMixin):
             passed_module_nums += 1
             if passed_module_nums > current_depth:
                 break
-
             x = module(x)
-
         return x
 
     @property
     def pure_module_nums(self) -> int:
-        nums = 0
-        for _ in self.pure_modules():
-            nums += 1
-
-        return nums
+        return sum(1 for _ in self.pure_modules())
 
     def pure_modules(self) -> Iterator[Module]:
         for module in self._modules.values():
