@@ -64,7 +64,7 @@ class TestDynamicMHA(TestCase):
             'num_heads')
         current_mutable_embed_dims = self.dynamic_m.get_mutable_attr(
             'embed_dims')
-        current_mutable_head_dims = self.dynamic_m.rel_pos_embed_k.get_mutable_attr(
+        current_mutable_head_dims = self.dynamic_m.rel_pos_embed_k.get_mutable_attr(  # noqa: E501
             'head_dims')
 
         current_mutable_embed_dims.fix_chosen(

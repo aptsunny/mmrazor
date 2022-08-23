@@ -335,8 +335,8 @@ class DynamicLayerNormMixin(DynamicChannelMixin):
         # normalized_shape is a tuple
         if mask_size != self.normalized_shape[0]:
             raise ValueError(
-                f'Expect mask size of mutable to be {self.normalized_shape} as '
-                f'`normalized_shape`, but got: {mask_size}.')
+                f'Expect mask size of mutable to be {self.normalized_shape}'
+                f' as `normalized_shape`, but got: {mask_size}.')
 
         self.mutable_attrs['num_features'] = mutable_num_features
 
@@ -802,13 +802,7 @@ class DynamicMHAMixin(DynamicMixin):
         else:
             out_features = self.embed_dims
 
-        # out_features, in_features = in_features, out_features
-        out_features = 128
-        in_features = 64
-        import pdb
-        pdb.set_trace()
-
-        weight = w.weight[:out_features][:in_features]
+        weight = w.weight[:out_features, :in_features]
         bias = w.bias[:out_features] if w.bias is not None else None
 
         return weight, bias
@@ -822,7 +816,8 @@ class DynamicMHAMixin(DynamicMixin):
             The input dimension is decided by `mutable_embed_dims`.
         """
         # TODO support mask later
-        if self.mutable_q_embed_dims is None and self.mutable_embed_dims is None:
+        if self.mutable_q_embed_dims is None and \
+                self.mutable_embed_dims is None:
             return w.weight, w.bias
 
         if self.mutable_embed_dims is not None:
@@ -835,7 +830,7 @@ class DynamicMHAMixin(DynamicMixin):
         else:
             out_features = self.embed_dims
 
-        weight = w.weight[:out_features][:in_features]
+        weight = w.weight[:out_features, :in_features]
         bias = w.bias[:out_features] if w.bias is not None else None
 
         return weight, bias
@@ -899,9 +894,9 @@ class DynamicSequentialMixin(DynamicMixin):
         assert hasattr(self, 'mutable_attrs')
         current_depth = mutable_depth.current_choice
         if current_depth > len(self._modules):
-            raise ValueError(
-                f'Expect depth of mutable to be smaller than {len(self._modules)} as '
-                f'`depth`, but got: {current_depth}.')
+            raise ValueError(f'Expect depth of mutable to be smaller than '
+                             f'{len(self._modules)} as `depth`, '
+                             f'but got: {current_depth}.')
         self.mutable_attrs['depth'] = mutable_depth
 
     @property
