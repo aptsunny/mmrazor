@@ -54,7 +54,7 @@ class TransformerEncoderLayer(BaseBackbone):
         self.attn = DynamicMultiheadAttention(
             embed_dims=embed_dims,
             num_heads=num_heads,
-            attn_drop=attn_drop_rate,
+            attn_drop_rate=attn_drop_rate,
             proj_drop=drop_rate,
             qkv_bias=qkv_bias)
 
@@ -83,12 +83,16 @@ class TransformerEncoderLayer(BaseBackbone):
         self.norm1.register_mutable_attr('num_features', mutable_embed_dims)
 
         # handle the mutable in multihead attention
+        mutable_q_embed_dims = mutable_num_heads * 64
         self.attn.register_mutable_attr('embed_dims', mutable_embed_dims)
         self.attn.register_mutable_attr('num_heads', mutable_num_heads)
+        self.attn.register_mutable_attr('q_embed_dims', mutable_q_embed_dims)
         self.attn.rel_pos_embed_k.register_mutable_attr(
-            'head_dims', mutable_embed_dims // mutable_num_heads)
+            'head_dims',
+            mutable_q_embed_dims.derive_divide_mutable(mutable_num_heads))
         self.attn.rel_pos_embed_v.register_mutable_attr(
-            'head_dims', mutable_embed_dims // mutable_num_heads)
+            'head_dims',
+            mutable_q_embed_dims.derive_divide_mutable(mutable_num_heads))
 
         # handle the mutable of the second dynamic LN
         self.norm2.register_mutable_attr('num_features', mutable_embed_dims)
@@ -119,7 +123,7 @@ class Autoformer(BaseBackbone):
     # 3 parameters are needed to construct a layer,
     # from left to right: embed_dim, num_head, mlp_ratio, depth
     arch_settings = {
-        'embed_dims': 624,
+        'embed_dims': 640,
         'num_heads': 10,
         'mlp_ratios': 4.0,
         'depth': 16,
@@ -226,7 +230,8 @@ class Autoformer(BaseBackbone):
 
     def mutate(self):
         # handle the mutation of depth
-        self.blocks.mutate_depth(self.mutable_depth, self.depth_range)
+        # self.blocks.mutate_depth(self.mutable_depth, self.depth_range)
+        self.blocks.register_mutable_attr('depth', self.mutable_depth)
 
         # handle the mutation of patch embed
         self.patch_embed.register_mutable_attr('embed_dims',
@@ -280,11 +285,10 @@ class Autoformer(BaseBackbone):
         x = x + self.pos_embed
 
         # dynamic depth
-        for i, block in enumerate(self.blocks):
+        for i, block in enumerate(self.blocks.pure_modules()):
             x = block(x)
             if i == len(self.blocks) - 1 and self.final_norm:
                 x = self.norm1(x)
-
         return torch.mean(x[:, 1:], dim=1)
 
 

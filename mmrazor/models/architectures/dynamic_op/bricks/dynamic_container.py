@@ -14,30 +14,12 @@ from .dynamic_mixins import DynamicSequentialMixin
 class DynamicSequential(Sequential, DynamicSequentialMixin):
     accepted_mutable_attrs = {'depth'}
 
-    forward_ignored_module = (MutableValue, DerivedMutable)
+    forward_ignored_module = (MutableValue, DerivedMutable, nn.ModuleDict)
 
     def __init__(self, *args, init_cfg: Optional[dict] = None):
         super().__init__(*args, init_cfg=init_cfg)
 
         self.mutable_attrs: Dict[str, BaseMutable] = nn.ModuleDict()
-
-    def mutate_depth(self,
-                     mutable_depth: BaseMutable,
-                     depth_seq: Optional[Sequence[int]] = None) -> None:
-
-        if depth_seq is None:
-            depth_seq = getattr(mutable_depth, 'choices')
-
-        if depth_seq is None:
-            raise ValueError('depth sequence must be provided')
-
-        depth_list = list(sorted(depth_seq))
-        if depth_list[-1] != len(self):
-            raise ValueError(f'Expect max depth to be: {len(self)}, '
-                             f'but got: {depth_list[-1]}')
-
-        self.depth_list = depth_list
-        self.mutable_depth = mutable_depth
 
     def forward(self, x: Tensor) -> Tensor:
         if self.mutable_depth is None:
@@ -57,6 +39,7 @@ class DynamicSequential(Sequential, DynamicSequentialMixin):
         return sum(1 for _ in self.pure_modules())
 
     def pure_modules(self) -> Iterator[Module]:
+        """nn.Module would influence the forward of Sequential."""
         for module in self._modules.values():
             if isinstance(module, self.forward_ignored_module):
                 continue

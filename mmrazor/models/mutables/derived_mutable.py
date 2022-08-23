@@ -143,13 +143,20 @@ class DerivedMethodMixin:
         return DerivedMutable(choice_fn=choice_fn, mask_fn=mask_fn)
 
     def derive_divide_mutable(self: MutableProtocol,
-                              ratio: int,
+                              ratio: Union[int, BaseMutable],
                               divisor: int = 8) -> 'DerivedMutable':
         """Derive divide mutable, usually used with `make_divisable`."""
-        choice_fn = _divide_choice_fn(self, ratio=ratio, divisor=divisor)
+        if isinstance(ratio, int):
+            choice_fn = _divide_choice_fn(self, ratio=ratio, divisor=divisor)
+        elif isinstance(ratio, BaseMutable):
+            current_ratio = ratio.current_choice
+            choice_fn = _divide_choice_fn(self, ratio=current_ratio, divisor=1)
+        else:
+            raise NotImplementedError(
+                f'Not support type of ratio: {type(ratio)}')
 
         mask_fn: Optional[Callable] = None
-        if hasattr(self, 'current_mask'):
+        if getattr(self, 'mask_fn', None):  # OneShotMutableChannel
             mask_fn = _divide_mask_fn(self, ratio=ratio, divisor=divisor)
 
         return DerivedMutable(choice_fn=choice_fn, mask_fn=mask_fn)
@@ -370,7 +377,6 @@ class DerivedMutable(BaseMutable[CHOICE_TYPE, CHOICE_TYPE],
 
         noncolcal_pars = inspect.getclosurevars(closure).nonlocals
         add_mutables_dfs(noncolcal_pars.values())
-
         return source_mutables
 
     def _trace_source_mutables(self) -> Set[BaseMutable]:

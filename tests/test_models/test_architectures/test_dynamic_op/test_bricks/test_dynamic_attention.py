@@ -22,9 +22,8 @@ class TestDynamicMHA(TestCase):
         self.mutable_q_embed_dims = self.mutable_num_heads * 8
 
         # derived mutable
-        self.mutable_head_dims = OneShotMutableValue(
-            value_list=[8], default_value=8)
-        # = self.mutable_q_embed_dims // self.num_heads
+        self.mutable_head_dims = self.mutable_q_embed_dims.derive_divide_mutable(
+            self.mutable_num_heads)
 
         self.dynamic_m = DynamicMultiheadAttention(embed_dims=128, num_heads=8)
 

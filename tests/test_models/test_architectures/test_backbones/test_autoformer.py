@@ -3,7 +3,6 @@ import unittest
 from unittest import TestCase
 
 import torch
-from mmcls.models import *  # noqa: F401,F403
 
 from mmrazor.models.architectures import Autoformer
 
