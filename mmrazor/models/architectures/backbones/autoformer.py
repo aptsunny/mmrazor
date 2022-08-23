@@ -83,7 +83,7 @@ class TransformerEncoderLayer(BaseBackbone):
         self.norm1.register_mutable_attr('num_features', mutable_embed_dims)
 
         # handle the mutable in multihead attention
-        mutable_q_embed_dims = mutable_num_heads * 64
+        mutable_q_embed_dims: OneShotMutableValue = mutable_num_heads * 64
         self.attn.register_mutable_attr('embed_dims', mutable_embed_dims)
         self.attn.register_mutable_attr('num_heads', mutable_num_heads)
         self.attn.register_mutable_attr('q_embed_dims', mutable_q_embed_dims)
@@ -136,17 +136,15 @@ class Autoformer(BaseBackbone):
         'embed_dims': [528, 576, 624],  # mutable channel
     }
 
-    def __init__(
-            self,
-            img_size: int = 224,
-            patch_size: int = 16,
-            in_channels: int = 3,
-            qkv_bias: bool = True,
-            conv_cfg: Dict = dict(type='DynamicConv2d'),  # TODO check
-            norm_cfg: Dict = dict(type='DynamicLayerNorm'),
-            act_cfg: Dict = dict(type='GELU'),
-            final_norm: bool = True,
-            init_cfg=None) -> None:
+    def __init__(self,
+                 img_size: int = 224,
+                 patch_size: int = 16,
+                 in_channels: int = 3,
+                 qkv_bias: bool = True,
+                 norm_cfg: Dict = dict(type='DynamicLayerNorm'),
+                 act_cfg: Dict = dict(type='GELU'),
+                 final_norm: bool = True,
+                 init_cfg=None) -> None:
         super().__init__(init_cfg)
 
         self.img_size = img_size
@@ -154,6 +152,7 @@ class Autoformer(BaseBackbone):
         self.qkv_bias = qkv_bias
         self.in_channels = in_channels
         self.dropout = 0.5
+        self.act_cfg = act_cfg
 
         # supernet settings
         self.embed_dims = int(self.arch_settings['embed_dims'])
@@ -224,7 +223,8 @@ class Autoformer(BaseBackbone):
                 num_heads=num_heads,
                 mlp_ratio=mlp_ratios,
                 drop_rate=0.,
-                attn_drop_rate=self.dropout)
+                attn_drop_rate=self.dropout,
+                act_cfg=self.act_cfg)
             layers.append(layer)
         return DynamicSequential(*layers)
 

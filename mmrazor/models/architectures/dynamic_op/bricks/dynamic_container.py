@@ -1,5 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-from typing import Dict, Iterator, Optional, Sequence
+from typing import Dict, Iterator, Optional
 
 import torch.nn as nn
 from mmengine.model import Sequential
@@ -44,3 +44,8 @@ class DynamicSequential(Sequential, DynamicSequentialMixin):
             if isinstance(module, self.forward_ignored_module):
                 continue
             yield module
+
+    @classmethod
+    def convert_from(cls, module: Sequential):
+        dynamic_m = cls(module._modules)
+        return dynamic_m

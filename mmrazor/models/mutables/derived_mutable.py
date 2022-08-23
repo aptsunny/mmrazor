@@ -149,7 +149,7 @@ class DerivedMethodMixin:
         if isinstance(ratio, int):
             choice_fn = _divide_choice_fn(self, ratio=ratio, divisor=divisor)
         elif isinstance(ratio, BaseMutable):
-            current_ratio = ratio.current_choice
+            current_ratio = int(ratio.current_choice)
             choice_fn = _divide_choice_fn(self, ratio=current_ratio, divisor=1)
         else:
             raise NotImplementedError(

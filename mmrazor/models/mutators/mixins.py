@@ -1,4 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
+import sys
 from collections import Counter
 from typing import Dict, List, Type
 
@@ -6,8 +7,13 @@ from torch.nn import Module
 
 from mmrazor.models.mutables.base_mutable import BaseMutable
 
+if sys.version_info < (3, 8):
+    from typing_extensions import Protocol
+else:
+    from typing import Protocol
 
-class MutatorProtocol():
+
+class MutatorProtocol(Protocol):  # pragma: no cover
 
     @property
     def mutable_class_type(self) -> Type[BaseMutable]:
