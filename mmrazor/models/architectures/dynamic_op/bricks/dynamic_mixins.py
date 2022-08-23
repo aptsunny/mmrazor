@@ -87,7 +87,7 @@ class DynamicMixin(ABC):
 
     def check_mutable_attr_valid(self, attr):
         assert attr in self.attr_mappings or \
-                    attr in self.accepted_mutable_attrs
+            attr in self.accepted_mutable_attrs
 
     @staticmethod
     def get_current_choice(mutable: BaseMutable) -> Any:
@@ -647,13 +647,7 @@ class DynamicRelativePosition2DMixin(DynamicChannelMixin):
 
     def _registry_mutable_head_dims(self: RelativePosition2D,
                                     mutable_head_dims: BaseMutable) -> None:
-        self.check_mutable_channels(mutable_head_dims)
-        mask_size = mutable_head_dims.current_mask.size(0)
-        if mask_size != self.head_dims:
-            raise ValueError(
-                f'Expect mask size of mutable to be {self.head_dims} as '
-                f'`head_dims`, but got: {mask_size}.')
-
+        assert hasattr(self, 'mutable_attrs')
         self.mutable_attrs['head_dims'] = mutable_head_dims
 
     def forward_mixin(self: RelativePosition2D, length_q, length_k) -> Tensor:
@@ -719,8 +713,17 @@ class DynamicRelativePosition2DMixin(DynamicChannelMixin):
 
 
 class DynamicMHAMixin(DynamicMixin):
+    """_summary_
 
-    accepted_mutable_attrs: Set[str] = {'num_heads', 'embed_dims'}
+    Note:
+        `embed_dims` serve the in_dim of qkv and out_dim of proj
+        `q_embed_dims` serve the out_dim of qkv and in_dim of proj
+        `q_embed_dims` is a DerivedMutable derived from `num_heads`
+            with `num_heads` \times 64.
+    """
+    accepted_mutable_attrs: Set[str] = {
+        'num_heads', 'embed_dims', 'q_embed_dims'
+    }
 
     def register_mutable_attr(self: MultiheadAttention, attr: str,
                               mutable: BaseMutable):
@@ -729,6 +732,8 @@ class DynamicMHAMixin(DynamicMixin):
             self._register_mutable_num_heads(mutable)
         elif attr == 'embed_dims':
             self._register_mutable_embed_dims(mutable)
+        elif attr == 'q_embed_dims':
+            self._register_mutable_q_embed_dims(mutable)
         else:
             raise NotImplementedError
 
@@ -754,6 +759,11 @@ class DynamicMHAMixin(DynamicMixin):
 
         self.mutable_attrs['embed_dims'] = mutable_embed_dims
 
+    def _register_mutable_q_embed_dims(self: MultiheadAttention,
+                                       mutable_q_embed_dims):
+        assert hasattr(self, 'mutable_attrs')
+        self.mutable_attrs['q_embed_dims'] = mutable_q_embed_dims
+
     @property
     def mutable_num_heads(self):
         assert hasattr(self, 'mutable_attrs')
@@ -764,19 +774,39 @@ class DynamicMHAMixin(DynamicMixin):
         assert hasattr(self, 'mutable_attrs')
         return self.mutable_attrs['embed_dims']
 
+    @property
+    def mutable_q_embed_dims(self):
+        assert hasattr(self, 'mutable_attrs')
+        return self.mutable_attrs['q_embed_dims']
+
     def _get_dynamic_proj_params(
             self: MultiheadAttention,
             w: nn.Linear) -> Tuple[Tensor, Optional[Tensor]]:
-        # TODO support mask later
-        if self.mutable_embed_dims is None:
+        """
+        Note:
+            The input dimension is decided by `mutable_q_embed_dims`.
+            The output dimension is decided by `mutable_embed_dims`.
+        """
+        # TODO support mask
+        if self.mutable_embed_dims is None and \
+                self.mutable_q_embed_dims is None:
             return w.weight, w.bias
 
-        if self.mutable_embed_dims is not None:
-            in_features = self.mutable_embed_dims.current_choice
+        if self.mutable_q_embed_dims is not None:
+            in_features = self.mutable_q_embed_dims.current_choice
         else:
             in_features = self.embed_dims
 
-        out_features = in_features
+        if self.mutable_embed_dims is not None:
+            out_features = self.mutable_embed_dims.current_choice
+        else:
+            out_features = self.embed_dims
+
+        # out_features, in_features = in_features, out_features
+        out_features = 128
+        in_features = 64
+        import pdb
+        pdb.set_trace()
 
         weight = w.weight[:out_features][:in_features]
         bias = w.bias[:out_features] if w.bias is not None else None
@@ -786,8 +816,13 @@ class DynamicMHAMixin(DynamicMixin):
     def _get_dynamic_qkv_params(
             self: MultiheadAttention,
             w: nn.Linear) -> Tuple[Tensor, Optional[Tensor]]:
+        """
+        Note:
+            The output dimension is decided by `mutable_q_embed_dims`.
+            The input dimension is decided by `mutable_embed_dims`.
+        """
         # TODO support mask later
-        if self.mutable_num_heads is None and self.mutable_embed_dims is None:
+        if self.mutable_q_embed_dims is None and self.mutable_embed_dims is None:
             return w.weight, w.bias
 
         if self.mutable_embed_dims is not None:
@@ -795,10 +830,10 @@ class DynamicMHAMixin(DynamicMixin):
         else:
             in_features = self.embed_dims
 
-        if self.mutable_num_heads is not None:
-            out_features = self.mutable_embed_dims.current_choice
+        if self.mutable_q_embed_dims is not None:
+            out_features = self.mutable_q_embed_dims.current_choice
         else:
-            out_features = self.num_heads * self.head_dims
+            out_features = self.embed_dims
 
         weight = w.weight[:out_features][:in_features]
         bias = w.bias[:out_features] if w.bias is not None else None

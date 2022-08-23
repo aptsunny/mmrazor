@@ -19,9 +19,12 @@ class TestDynamicMHA(TestCase):
             num_channels=128,
             candidate_choices=[32, 64, 128],
             candidate_mode='number')
+        self.mutable_q_embed_dims = self.mutable_num_heads * 8
 
         # derived mutable
-        self.mutable_head_dims = self.mutable_embed_dims // self.mutable_num_heads
+        self.mutable_head_dims = OneShotMutableValue(
+            value_list=[8], default_value=8)
+        # = self.mutable_q_embed_dims // self.num_heads
 
         self.dynamic_m = DynamicMultiheadAttention(embed_dims=128, num_heads=8)
 
@@ -29,6 +32,8 @@ class TestDynamicMHA(TestCase):
                                              self.mutable_num_heads)
         self.dynamic_m.register_mutable_attr('embed_dims',
                                              self.mutable_embed_dims)
+        self.dynamic_m.register_mutable_attr('q_embed_dims',
+                                             self.mutable_q_embed_dims)
 
         self.dynamic_m.rel_pos_embed_k.register_mutable_attr(
             'head_dims', self.mutable_head_dims)
@@ -41,9 +46,8 @@ class TestDynamicMHA(TestCase):
             self.dynamic_m.get_mutable_attr('embed_dims').current_choice, 128)
 
     def test_forward(self) -> None:
-        x = torch.randn(8, 197, 624)
+        x = torch.randn(8, 197, 128)
         output = self.dynamic_m(x)
-
         self.assertIsNotNone(output)
 
     def test_convert(self) -> None:
@@ -60,11 +64,15 @@ class TestDynamicMHA(TestCase):
             'num_heads')
         current_mutable_embed_dims = self.dynamic_m.get_mutable_attr(
             'embed_dims')
+        current_mutable_head_dims = self.dynamic_m.rel_pos_embed_k.get_mutable_attr(
+            'head_dims')
 
         current_mutable_embed_dims.fix_chosen(
             current_mutable_embed_dims.dump_chosen())
         current_mutable_num_heads.fix_chosen(
             current_mutable_num_heads.dump_chosen())
+        current_mutable_head_dims.fix_chosen(
+            current_mutable_head_dims.dump_chosen())
 
         static_op = self.dynamic_m.to_static_op()
 

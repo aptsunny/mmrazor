@@ -10,5 +10,6 @@ from .subnet_sampler_loop import GreedySamplerTrainLoop
 __all__ = [
     'SingleTeacherDistillValLoop', 'DartsEpochBasedTrainLoop',
     'DartsIterBasedTrainLoop', 'SlimmableValLoop', 'EvolutionSearchLoop',
-    'GreedySamplerTrainLoop', 'AutoSlimValLoop', 'SelfDistillValLoop', 'AutoSlimTestLoop'
+    'GreedySamplerTrainLoop', 'AutoSlimValLoop', 'SelfDistillValLoop',
+    'AutoSlimTestLoop'
 ]

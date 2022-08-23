@@ -148,9 +148,9 @@ class MultiheadAttention(BaseModule):
         # image relative position encoding
         if self.relative_position:
             self.rel_pos_embed_k = RelativePosition2D(
-                self.num_heads, self.max_relative_position)
+                self.head_dims, self.max_relative_position)
             self.rel_pos_embed_v = RelativePosition2D(
-                self.num_heads, self.max_relative_position)
+                self.head_dims, self.max_relative_position)
 
     def forward(self, x):
         B, N, _ = x.shape

@@ -19,6 +19,7 @@ class DynamicMultiheadAttention(MultiheadAttention, DynamicMHAMixin):
         # 'head_dims', = embed_dims / num_heads
         'num_heads',
         'embed_dims',
+        'q_embed_dims',
     }
 
     def __init__(self, *args, **kwargs) -> None:
@@ -46,24 +47,25 @@ class DynamicMultiheadAttention(MultiheadAttention, DynamicMHAMixin):
 
     def forward(self, x: Tensor) -> Tensor:
         B, N = x.shape[0], x.shape[1]
-        embed_dims = self.mutable_embed_dims.current_choice  # 624
+        # embed_dims = self.mutable_embed_dims.current_choice  # 624
+        q_embed_dims = self.mutable_q_embed_dims.current_choice  # num_heads * 64
         num_heads = self.mutable_num_heads.current_choice  # 10
-        head_dims = embed_dims // num_heads  # 62
-
+        # head_dims = q_embed_dims // num_heads  # 64
         q_w, q_b = self._get_dynamic_qkv_params(self.w_qs)
         k_w, k_b = self._get_dynamic_qkv_params(self.w_ks)
         v_w, v_b = self._get_dynamic_qkv_params(self.w_vs)
 
-        q = F.linear(x, q_w, q_b).view(B, N, num_heads, head_dims)
-        k = F.linear(x, k_w, k_b).view(B, N, num_heads, head_dims)
-        v = F.linear(x, v_w, v_b).view(B, N, num_heads, head_dims)
-        import pdb
-        pdb.set_trace()
+        # x.shape: 8, 197, 128
+        # q_w.shape: 64, 128
+        # q_b.shape: 64
+        q = F.linear(x, q_w, q_b).view(B, N, num_heads,
+                                       q_embed_dims // num_heads)
+        k = F.linear(x, k_w, k_b).view(B, N, num_heads,
+                                       q_embed_dims // num_heads)
+        v = F.linear(x, v_w, v_b).view(B, N, num_heads,
+                                       q_embed_dims // num_heads)
 
         q, k, v = q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2)
-
-        # v.shape: [8, 10, 197, 62]
-        # x.shape: [8, 197, 624]
 
         attn = (q @ k.transpose(-2, -1)) * self.scale
         # attn.shape: [8, 10, 197, 197]
@@ -84,9 +86,13 @@ class DynamicMultiheadAttention(MultiheadAttention, DynamicMHAMixin):
             x = x + (attn_1 @ r_p_v).transpose(1, 0).reshape(
                 B, num_heads, N, -1).transpose(2, 1).reshape(B, N, -1)
 
-        print('dynamic mha forward x.shape : ', x.shape)
-        # [8, 197, 620]
-
-        x = self.proj(x)
+        # proj
+        weight, bias = self._get_dynamic_proj_params(self.proj)
+        import pdb
+        pdb.set_trace()
+        # x.shape: 8, 197, 64
+        # weight.shape: 64, 128
+        # bias.shape: 64
+        x = F.linear(x, weight, bias)
         x = self.proj_drop(x)
         return x
