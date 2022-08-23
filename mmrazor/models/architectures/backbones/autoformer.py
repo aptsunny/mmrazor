@@ -230,12 +230,11 @@ class Autoformer(BaseBackbone):
 
     def mutate(self):
         # handle the mutation of depth
-        # self.blocks.mutate_depth(self.mutable_depth, self.depth_range)
         self.blocks.register_mutable_attr('depth', self.mutable_depth)
 
         # handle the mutation of patch embed
-        self.patch_embed.register_mutable_attr('embed_dims',
-                                               self.mutable_embed_dims)
+        self.patch_embed.register_mutable_attr(
+            'embed_dims', self.mutable_embed_dims.derive_same_mutable())
         self.last_mutable_embed_dim = self.mutable_embed_dims
 
         # handle the dependencies of TransformerEncoderLayers
@@ -256,7 +255,8 @@ class Autoformer(BaseBackbone):
                 mutable_num_heads=mutable_num_heads,
                 mutable_mlp_ratios=mutable_mlp_ratios)
 
-            self.last_mutable_embed_dim = mutable_embed_dims
+            self.last_mutable_embed_dim.register_same_mutable(
+                mutable_embed_dims)
 
         # handle the mutable of final norm
         if self.final_norm:
