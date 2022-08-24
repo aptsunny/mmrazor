@@ -28,9 +28,6 @@ class TestAutoformer(TestCase):
         vm.prepare_from_supernet(m)
         print(vm.search_groups)
 
-        print('=' * 10)
-        print(m.last_mutable_embed_dim.same_mutables)
-
 
 if __name__ == '__main__':
     unittest.main()

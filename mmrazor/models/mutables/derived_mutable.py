@@ -131,10 +131,18 @@ class DerivedMethodMixin:
         """Derive same mutable as the source."""
         return self.derive_expand_mutable(expand_ratio=1)
 
-    def derive_expand_mutable(self: MutableProtocol,
-                              expand_ratio: int) -> 'DerivedMutable':
+    def derive_expand_mutable(
+            self: MutableProtocol,
+            expand_ratio: Union[int, BaseMutable]) -> 'DerivedMutable':
         """Derive expand mutable, usually used with `expand_ratio`."""
-        choice_fn = _expand_choice_fn(self, expand_ratio=expand_ratio)
+        if isinstance(expand_ratio, int):
+            choice_fn = _expand_choice_fn(self, expand_ratio=expand_ratio)
+        elif isinstance(expand_ratio, BaseMutable):
+            expand_ratio = int(expand_ratio.current_choice)
+            choice_fn = _expand_choice_fn(self, expand_ratio=expand_ratio)
+        else:
+            raise NotImplementedError(
+                f'Not support type of ratio: {type(expand_ratio)}')
 
         mask_fn: Optional[Callable] = None
         if hasattr(self, 'current_mask'):

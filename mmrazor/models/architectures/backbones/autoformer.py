@@ -83,7 +83,8 @@ class TransformerEncoderLayer(BaseBackbone):
         self.norm1.register_mutable_attr('num_features', mutable_embed_dims)
 
         # handle the mutable in multihead attention
-        mutable_q_embed_dims: OneShotMutableValue = mutable_num_heads * 64
+        mutable_q_embed_dims: OneShotMutableValue = mutable_num_heads.derive_expand_mutable(
+            64)
         self.attn.register_mutable_attr('embed_dims', mutable_embed_dims)
         self.attn.register_mutable_attr('num_heads', mutable_num_heads)
         self.attn.register_mutable_attr('q_embed_dims', mutable_q_embed_dims)
@@ -99,7 +100,8 @@ class TransformerEncoderLayer(BaseBackbone):
 
         # handle the mutable of FFN
         # mutable channel x mutable value
-        self.middle_channels = mutable_embed_dims * mutable_mlp_ratios
+        self.middle_channels = mutable_embed_dims.derive_expand_mutable(
+            mutable_mlp_ratios)
         self.fc1.register_mutable_attr('in_channels', mutable_embed_dims)
         self.fc1.register_mutable_attr('out_channels', self.middle_channels)
         self.fc2.register_mutable_attr('in_channels', self.middle_channels)
@@ -144,6 +146,7 @@ class Autoformer(BaseBackbone):
                  norm_cfg: Dict = dict(type='DynamicLayerNorm'),
                  act_cfg: Dict = dict(type='GELU'),
                  final_norm: bool = True,
+                 drop_out: float = 0.,
                  init_cfg=None) -> None:
         super().__init__(init_cfg)
 
@@ -151,7 +154,7 @@ class Autoformer(BaseBackbone):
         self.patch_size = patch_size
         self.qkv_bias = qkv_bias
         self.in_channels = in_channels
-        self.dropout = 0.5
+        self.dropout = drop_out
         self.act_cfg = act_cfg
 
         # supernet settings
@@ -241,22 +244,16 @@ class Autoformer(BaseBackbone):
         for i in range(self.depth):  # max depth here
             layer = self.blocks[i]
 
-            mutable_embed_dims = OneShotMutableChannel(
-                num_channels=self.embed_dims,
-                candidate_mode='number',
-                candidate_choices=self.embed_dim_range)
             mutable_num_heads = OneShotMutableValue(
                 value_list=self.num_head_range, default_value=self.num_heads)
             mutable_mlp_ratios = OneShotMutableValue(
                 value_list=self.mlp_ratio_range, default_value=self.mlp_ratios)
 
             layer.mutate_encoder_layer(
-                mutable_embed_dims=mutable_embed_dims,
+                mutable_embed_dims=self.last_mutable_embed_dim.
+                derive_same_mutable(),
                 mutable_num_heads=mutable_num_heads,
                 mutable_mlp_ratios=mutable_mlp_ratios)
-
-            self.last_mutable_embed_dim.register_same_mutable(
-                mutable_embed_dims)
 
         # handle the mutable of final norm
         if self.final_norm:
