@@ -26,15 +26,18 @@ class DynamicInputResizer(InputResizer, DynamicOP):
         self.mutable_shape: Optional[BaseMutable] = None
 
     def mutate_shape(self, mutable_shape: BaseMutable) -> None:
+        """Mutate the shape of input."""
         self.mutable_shape = mutable_shape
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward of Dynamic input resizer"""
         if self.mutable_shape is not None:
             self._size = self.mutable_shape.current_choice
 
         return super().forward(x)
 
     def to_static_op(self) -> Module:
+        """Convert dynamic OP to static OP."""
         self.check_if_mutables_fixed()
 
         size = None

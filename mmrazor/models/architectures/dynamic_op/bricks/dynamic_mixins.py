@@ -7,7 +7,7 @@ import torch
 from mmcls.models.utils import PatchEmbed
 from mmengine import print_log
 from torch import Tensor, nn
-from torch.nn import LayerNorm, Sequential
+from torch.nn import LayerNorm, Linear, Sequential
 from torch.nn.modules.batchnorm import _BatchNorm
 
 from mmrazor.models.mutables.base_mutable import BaseMutable
@@ -38,6 +38,7 @@ class DynamicMixin(ABC):
 
     @abstractmethod
     def register_mutable_attr(self, attr: str, mutable: BaseMutable):
+        """Register attribute of mutable."""
         pass
 
     def get_mutable_attr(self, attr: str) -> BaseMutable:
@@ -145,6 +146,7 @@ class DynamicBatchNormMixin(DynamicChannelMixin):
     }
 
     def register_mutable_attr(self, attr, mutable):
+        """Register attribute of mutable."""
         self.check_mutable_attr_valid(attr)
         if attr in self.attr_mappings:
             attr_map = self.attr_mappings[attr]
@@ -286,10 +288,12 @@ class DynamicLayerNormMixin(DynamicChannelMixin):
 
     @property
     def mutable_num_features(self):
+        """Mutable number of features."""
         assert hasattr(self, 'mutable_attrs')
         return self.mutable_attrs['num_features']
 
     def register_mutable_attr(self, attr, mutable):
+        """Register attribute of mutable."""
         self.check_mutable_attr_valid(attr)
         if attr in self.attr_mappings:
             attr_map = self.attr_mappings[attr]
@@ -306,7 +310,7 @@ class DynamicLayerNormMixin(DynamicChannelMixin):
             raise NotImplementedError
 
     def _register_mutable_attr(self, attr, mutable):
-
+        """Register `num_features`."""
         if attr == 'num_features':
             self._register_mutable_num_features(mutable)
         else:
@@ -342,7 +346,7 @@ class DynamicLayerNormMixin(DynamicChannelMixin):
         self.mutable_attrs['num_features'] = mutable_num_features
 
     def _get_num_features_mask(self: LayerNorm) -> Optional[torch.Tensor]:
-        """Get mask of ``num_features``"""
+        """Get mask of ``num_features``."""
         if self.elementwise_affine:
             refer_tensor = self.weight
         else:
@@ -415,7 +419,20 @@ class DynamicLinearMixin(DynamicChannelMixin):
         'out_channels': 'out_features',
     }
 
+    @property
+    def mutable_in_features(self: Linear) -> nn.Module:
+        """Mutable input feature dimension."""
+        assert hasattr(self, 'mutable_attrs')
+        return self.mutable_attrs['in_features']
+
+    @property
+    def mutable_out_features(self: Linear) -> nn.Module:
+        """Mutable output feature dimension."""
+        assert hasattr(self, 'mutable_attrs')
+        return self.mutable_attrs['out_features']
+
     def register_mutable_attr(self, attr, mutable):
+        """Register attribute of mutable."""
         self.check_mutable_attr_valid(attr)
         if attr in self.attr_mappings:
             attr_map = self.attr_mappings[attr]
@@ -432,7 +449,7 @@ class DynamicLinearMixin(DynamicChannelMixin):
             raise NotImplementedError
 
     def _register_mutable_attr(self, attr, mutable):
-
+        """Register attr `in_features` and `out_features`."""
         if attr == 'in_features':
             self._register_mutable_in_features(mutable)
         elif attr == 'out_features':
@@ -491,14 +508,14 @@ class DynamicLinearMixin(DynamicChannelMixin):
             return self.weight, self.bias
 
         if 'in_features' in self.mutable_attrs:
-            in_mask = self.mutable_attrs['in_features'].current_mask.to(
+            in_mask = self.mutable_in_features.current_mask.to(
                 self.weight.device)
         else:
             in_mask = torch.ones(self.weight.size(1)).bool().to(
                 self.weight.device)
         if 'out_features' in self.mutable_attrs:
 
-            out_mask = self.mutable_attrs['out_features'].current_mask.to(
+            out_mask = self.mutable_out_features.current_mask.to(
                 self.weight.device)
         else:
             out_mask = torch.ones(self.weight.size(0)).bool().to(
@@ -526,9 +543,9 @@ class DynamicLinearMixin(DynamicChannelMixin):
             out_features=out_features,
             bias=True if bias is not None else False)
 
-        static_linear.weight = nn.Parameter(weight)
+        static_linear.weight = nn.Parameter(weight.clone())
         if bias is not None:
-            static_linear.bias = nn.Parameter(bias)
+            static_linear.bias = nn.Parameter(bias.clone())
 
         return static_linear
 
@@ -543,11 +560,13 @@ class DynamicPatchEmbedMixin(DynamicChannelMixin):
 
     @property
     def mutable_embed_dims(self):
+        """Mutable embedding dimension."""
         assert hasattr(self, 'mutable_attrs')
         return self.mutable_attrs['embed_dims']
 
     def register_mutable_attr(self: PatchEmbed, attr: str,
                               mutable: BaseMutable):
+        """Register attribute of mutable."""
         self.check_mutable_attr_valid(attr)
         if attr in self.attr_mappings:
             attr_map = self.attr_mappings[attr]
@@ -593,7 +612,7 @@ class DynamicPatchEmbedMixin(DynamicChannelMixin):
             return weight, bias
 
     def to_static_op(self: PatchEmbed) -> nn.Module:
-
+        """Convert dynamic PatchEmbed to static PatchEmbed."""
         self.check_if_mutables_fixed()
         assert self.mutable_embed_dims is not None
 
@@ -619,11 +638,13 @@ class DynamicRelativePosition2DMixin(DynamicChannelMixin):
 
     @property
     def mutable_head_dims(self):
+        """Mutable head dimension."""
         assert hasattr(self, 'mutable_attrs')
         return self.mutable_attrs['head_dims']
 
     def register_mutable_attr(self: RelativePosition2D, attr: str,
                               mutable: BaseMutable):
+        """Register attribute of mutable."""
         self.check_mutable_attr_valid(attr)
         if attr in self.attr_mappings:
             attr_map = self.attr_mappings[attr]
@@ -698,6 +719,7 @@ class DynamicRelativePosition2DMixin(DynamicChannelMixin):
         return embeddings
 
     def to_static_op(self: RelativePosition2D) -> nn.Module:
+        """Convert dynamic RelativePosition2D to static One."""
         self.check_if_mutables_fixed()
 
         self.current_head_dim = self.mutable_head_dims.current_choice
@@ -725,9 +747,27 @@ class DynamicMHAMixin(DynamicMixin):
         'num_heads', 'embed_dims', 'q_embed_dims'
     }
 
+    @property
+    def mutable_num_heads(self):
+        """Mutable number of heads"""
+        assert hasattr(self, 'mutable_attrs')
+        return self.mutable_attrs['num_heads']
+
+    @property
+    def mutable_embed_dims(self):
+        """Mutable embedding dimension."""
+        assert hasattr(self, 'mutable_attrs')
+        return self.mutable_attrs['embed_dims']
+
+    @property
+    def mutable_q_embed_dims(self):
+        """Mutable intermediate embedding dimension."""
+        assert hasattr(self, 'mutable_attrs')
+        return self.mutable_attrs['q_embed_dims']
+
     def register_mutable_attr(self: MultiheadAttention, attr: str,
                               mutable: BaseMutable):
-
+        """Register attribute of mutable."""
         if attr == 'num_heads':
             self._register_mutable_num_heads(mutable)
         elif attr == 'embed_dims':
@@ -763,21 +803,6 @@ class DynamicMHAMixin(DynamicMixin):
                                        mutable_q_embed_dims):
         assert hasattr(self, 'mutable_attrs')
         self.mutable_attrs['q_embed_dims'] = mutable_q_embed_dims
-
-    @property
-    def mutable_num_heads(self):
-        assert hasattr(self, 'mutable_attrs')
-        return self.mutable_attrs['num_heads']
-
-    @property
-    def mutable_embed_dims(self):
-        assert hasattr(self, 'mutable_attrs')
-        return self.mutable_attrs['embed_dims']
-
-    @property
-    def mutable_q_embed_dims(self):
-        assert hasattr(self, 'mutable_attrs')
-        return self.mutable_attrs['q_embed_dims']
 
     def _get_dynamic_proj_params(
             self: MultiheadAttention,
@@ -836,6 +861,7 @@ class DynamicMHAMixin(DynamicMixin):
         return weight, bias
 
     def to_static_op(self: MultiheadAttention) -> nn.Module:
+        """Convert dynamic MultiheadAttention to static one."""
         self.check_if_mutables_fixed()
 
         embed_dims = self.mutable_embed_dims.current_choice
@@ -879,18 +905,21 @@ class DynamicSequentialMixin(DynamicMixin):
     accepted_mutable_attrs: Set[str] = {'depth'}
 
     @property
-    def mutable_depth(self):
+    def mutable_depth(self: Sequential) -> nn.Module:
+        """Mutable depth."""
         assert hasattr(self, 'mutable_attrs')
         return self.mutable_attrs['depth']
 
     def register_mutable_attr(self: Sequential, attr: str,
                               mutable: BaseMutable):
+        """Register attribute of mutable."""
         if attr == 'depth':
             self._register_mutable_depth(mutable)
         else:
             raise NotImplementedError
 
     def _register_mutable_depth(self: Sequential, mutable_depth: MutableValue):
+        """Register mutable depth."""
         assert hasattr(self, 'mutable_attrs')
         assert mutable_depth.current_choice is not None
         current_depth = mutable_depth.current_choice
@@ -902,9 +931,11 @@ class DynamicSequentialMixin(DynamicMixin):
 
     @property
     def static_op_factory(self):
+        """Corresponding Pytorch OP."""
         return Sequential
 
     def to_static_op(self: Sequential) -> Sequential:
+        """Convert dynamic Sequential to static one."""
         self.check_if_mutables_fixed()
 
         if self.mutable_depth is None:

@@ -22,6 +22,7 @@ class DynamicSequential(Sequential, DynamicSequentialMixin):
         self.mutable_attrs: Dict[str, BaseMutable] = nn.ModuleDict()
 
     def forward(self, x: Tensor) -> Tensor:
+        """Forward of Dynamic Sequential."""
         if self.mutable_depth is None:
             return self(x)
 
@@ -36,6 +37,7 @@ class DynamicSequential(Sequential, DynamicSequentialMixin):
 
     @property
     def pure_module_nums(self) -> int:
+        """Number of pure module."""
         return sum(1 for _ in self.pure_modules())
 
     def pure_modules(self) -> Iterator[Module]:
@@ -47,5 +49,6 @@ class DynamicSequential(Sequential, DynamicSequentialMixin):
 
     @classmethod
     def convert_from(cls, module: Sequential):
+        """Convert the static Sequential to dynamic one."""
         dynamic_m = cls(module._modules)
         return dynamic_m

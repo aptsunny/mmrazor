@@ -36,6 +36,7 @@ class DynamicMultiheadAttention(MultiheadAttention, DynamicMHAMixin):
 
     @classmethod
     def convert_from(cls, module):
+        """Convert the static module to dynamic one."""
         dynamic_mha = cls(
             embed_dims=module.embed_dims,
             num_heads=module.num_heads,
@@ -43,9 +44,11 @@ class DynamicMultiheadAttention(MultiheadAttention, DynamicMHAMixin):
         return dynamic_mha
 
     def static_op_factory(self):
+        """Corresponding Pytorch OP."""
         return MultiheadAttention
 
     def forward(self, x: Tensor) -> Tensor:
+        """Forward of dynamic MultiheadAttention."""
         B, N = x.shape[0], x.shape[1]
         q_embed_dims = self.mutable_q_embed_dims.current_choice
         num_heads = self.mutable_num_heads.current_choice

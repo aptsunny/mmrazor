@@ -27,6 +27,7 @@ class DynamicRelativePosition2D(RelativePosition2D,
 
     @property
     def static_op_factory(self):
+        """Corresponding Pytorch OP."""
         return RelativePosition2D
 
     @classmethod
@@ -38,4 +39,5 @@ class DynamicRelativePosition2D(RelativePosition2D,
         return dynamic_rp
 
     def forward(self, length_q, length_k) -> Tensor:
+        """Forward of Dynamic Relative Position."""
         return self.forward_mixin(length_q, length_k)

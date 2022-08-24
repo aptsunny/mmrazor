@@ -32,6 +32,7 @@ class DynamicPatchEmbed(PatchEmbed, DynamicPatchEmbedMixin):
 
     @property
     def static_op_factory(self):
+        """Corresponding Pytorch OP."""
         return PatchEmbed
 
     @classmethod
@@ -49,6 +50,7 @@ class DynamicPatchEmbed(PatchEmbed, DynamicPatchEmbedMixin):
         return dynamic_patch_embed
 
     def forward(self, x: Tensor) -> Tensor:
+        """Forward of dynamic patch embed."""
         weight, bias = self._get_dynamic_params()
         x = F.conv2d(
             x,

@@ -92,6 +92,7 @@ class DynamicBatchNorm1d(_DynamicBatchNorm):
 
     @property
     def static_op_factory(self):
+        """Corresponding Pytorch OP."""
         return nn.BatchNorm1d
 
     def _check_input_dim(self, input: Tensor) -> None:
@@ -107,6 +108,7 @@ class DynamicBatchNorm2d(_DynamicBatchNorm):
 
     @property
     def static_op_factory(self):
+        """Corresponding Pytorch OP."""
         return nn.BatchNorm2d
 
     def _check_input_dim(self, input: Tensor) -> None:
@@ -122,6 +124,7 @@ class DynamicBatchNorm3d(_DynamicBatchNorm):
 
     @property
     def static_op_factory(self):
+        """Corresponding Pytorch OP."""
         return nn.BatchNorm3d
 
     def _check_input_dim(self, input: Tensor) -> None:
@@ -136,8 +139,14 @@ class DynamicLayerNorm(LayerNorm, DynamicLayerNormMixin):
     """Applies Layer Normalization over a mini-batch of inputs according to the
     `mutable_num_channels` dynamically.
 
-    Args:
-        num_channels_cfg (Dict): Config related to `num_channels`.
+    Note:
+        Arguments for ``__init__`` of ``DynamicLayerNorm`` is totally same as
+        :obj:`torch.nn.LayerNorm`.
+
+    Attributes:
+        mutable_attrs (ModuleDict[str, BaseMutable]): Mutable attributes,
+            such as `num_features`. The key of the dict must in
+            ``accepted_mutable_attrs``.
     """
     accepted_mutable_attrs = {'num_features'}
 
@@ -160,9 +169,6 @@ class DynamicLayerNorm(LayerNorm, DynamicLayerNormMixin):
 
         return dynamic_ln
 
-    def mutate_num_channels(self, mutable_num_channels):
-        self.mutable_num_channels = mutable_num_channels
-
     def forward(self, input: Tensor) -> Tensor:
         """Slice the parameters according to `mutable_num_channels`, and
         forward."""
@@ -175,6 +181,7 @@ class DynamicLayerNorm(LayerNorm, DynamicLayerNormMixin):
 
     @property
     def static_op_factory(self):
+        """Corresponding Pytorch OP."""
         return LayerNorm
 
     def _check_input_dim(self, input: Tensor) -> None:

@@ -76,6 +76,7 @@ class SwitchableBatchNorm2d(nn.Module, DynamicOP):
         return self.bns[idx](input)
 
     def to_static_op(self) -> nn.Module:
+        """Convert dynamic OP to static OP."""
         bn_idx = self.mutable_num_features.current_choice
 
         return self.bns[bn_idx]
