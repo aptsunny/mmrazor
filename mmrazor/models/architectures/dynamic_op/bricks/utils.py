@@ -2,9 +2,9 @@
 
 import torch
 import torch.nn as nn
-from mmcv.cnn.bricks.registry import DROPOUT_LAYERS
-from mmcv.cnn.utils.weight_init import trunc_normal_
-from mmcv.runner.base_module import BaseModule
+from mmengine.model import BaseModule
+from mmengine.model.utils import trunc_normal_
+from mmengine.registry import MODELS
 
 
 class RelativePosition2D(nn.Module):
@@ -143,7 +143,7 @@ class MultiheadAttention(BaseModule):
         self.attn_drop = nn.Dropout(attn_drop_rate)
         self.proj = nn.Linear(embed_dims, embed_dims, bias=proj_bias)
         self.proj_drop = nn.Dropout(proj_drop)
-        self.out_drop = DROPOUT_LAYERS.build(dropout_layer)
+        self.out_drop = MODELS.build(dropout_layer)
 
         # image relative position encoding
         if self.relative_position:

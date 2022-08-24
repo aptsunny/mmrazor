@@ -5,9 +5,10 @@ from typing import List, Optional, Sequence, Tuple
 import torch.nn as nn
 from mmcls.models.backbones.base_backbone import BaseBackbone
 from mmcls.models.utils import make_divisible
-from mmcv.cnn import ConvModule, constant_init
+from mmcv.cnn import ConvModule
 from mmengine.logging import MMLogger
 from mmengine.model import Sequential
+from mmengine.model.utils import constant_init
 from torch.nn.modules.batchnorm import _BatchNorm
 
 from mmrazor.models.architectures.dynamic_op import DynamicSequential

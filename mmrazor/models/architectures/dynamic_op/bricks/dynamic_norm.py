@@ -7,8 +7,8 @@ from torch import Tensor
 from torch.nn import LayerNorm
 from torch.nn.modules.batchnorm import _BatchNorm
 
-from mmrazor.registry import MODELS
 from mmrazor.models.mutables.base_mutable import BaseMutable
+from mmrazor.registry import MODELS
 from .dynamic_mixins import DynamicBatchNormMixin, DynamicLayerNormMixin
 
 
@@ -131,7 +131,7 @@ class DynamicBatchNorm3d(_DynamicBatchNorm):
                 input.dim()))
 
 
-@NORM_LAYERS.register_module()
+@MODELS.register_module()
 class DynamicLayerNorm(LayerNorm, DynamicLayerNormMixin):
     """Applies Layer Normalization over a mini-batch of inputs according to the
     `mutable_num_channels` dynamically.

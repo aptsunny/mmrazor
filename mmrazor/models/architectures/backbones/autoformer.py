@@ -40,7 +40,7 @@ class TransformerEncoderLayer(BaseBackbone):
                  attn_drop_rate: float,
                  qkv_bias: bool = True,
                  act_cfg: Dict = dict(type='GELU'),
-                 norm_cfg: Dict = dict(type='DynamicLayerNorm'),
+                 norm_cfg: Dict = dict(type='mmrazor.DynamicLayerNorm'),
                  init_cfg: Dict = None) -> None:
         super().__init__(init_cfg)
 
@@ -83,7 +83,7 @@ class TransformerEncoderLayer(BaseBackbone):
         self.norm1.register_mutable_attr('num_features', mutable_embed_dims)
 
         # handle the mutable in multihead attention
-        mutable_q_embed_dims: OneShotMutableValue = mutable_num_heads.derive_expand_mutable(
+        mutable_q_embed_dims: OneShotMutableValue = mutable_num_heads.derive_expand_mutable(  # noqa: E501
             64)
         self.attn.register_mutable_attr('embed_dims', mutable_embed_dims)
         self.attn.register_mutable_attr('num_heads', mutable_num_heads)
@@ -143,7 +143,7 @@ class Autoformer(BaseBackbone):
                  patch_size: int = 16,
                  in_channels: int = 3,
                  qkv_bias: bool = True,
-                 norm_cfg: Dict = dict(type='DynamicLayerNorm'),
+                 norm_cfg: Dict = dict(type='mmrazor.DynamicLayerNorm'),
                  act_cfg: Dict = dict(type='GELU'),
                  final_norm: bool = True,
                  drop_out: float = 0.,

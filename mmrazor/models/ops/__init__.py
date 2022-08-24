@@ -3,8 +3,8 @@ from .common import Identity
 from .darts_series import (DartsDilConv, DartsPoolBN, DartsSepConv,
                            DartsSkipConnect, DartsZero)
 from .efficientnet_series import ConvBnAct, DepthwiseSeparableConv
-from .gather_tensors import GatherTensors
 from .function import InputResizer
+from .gather_tensors import GatherTensors
 from .mobilenet_series import MBBlock
 from .shufflenet_series import ShuffleBlock, ShuffleXception
 

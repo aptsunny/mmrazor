@@ -4,14 +4,14 @@ from typing import Dict
 import torch.nn as nn
 import torch.nn.functional as F
 from mmcls.models.utils import PatchEmbed
-from mmcv.cnn.bricks.registry import CONV_LAYERS
 from torch import Tensor
 
 from mmrazor.models.mutables.base_mutable import BaseMutable
+from mmrazor.registry import MODELS
 from .dynamic_mixins import DynamicPatchEmbedMixin
 
 
-@CONV_LAYERS.register_module()
+@MODELS.register_module()
 class DynamicPatchEmbed(PatchEmbed, DynamicPatchEmbedMixin):
     """AI is creating summary for __init__
 
