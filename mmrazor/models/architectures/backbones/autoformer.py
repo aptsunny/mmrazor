@@ -69,15 +69,18 @@ class TransformerEncoderLayer(BaseBackbone):
 
     @property
     def norm1(self):
+        """The first normalization."""
         return getattr(self, self.norm1_name)
 
     @property
     def norm2(self):
+        """The second normalization."""
         return getattr(self, self.norm2_name)
 
     def mutate_encoder_layer(self, mutable_embed_dims: BaseMutable,
                              mutable_num_heads: BaseMutable,
                              mutable_mlp_ratios: BaseMutable):
+        """Mutate the mutables of encoder layer."""
 
         # handle the mutable of the first dynamic LN
         self.norm1.register_mutable_attr('num_features', mutable_embed_dims)
@@ -108,6 +111,7 @@ class TransformerEncoderLayer(BaseBackbone):
         self.fc2.register_mutable_attr('out_channels', mutable_embed_dims)
 
     def forward(self, x: Tensor) -> Tensor:
+        """Forward of Transformer Encode Layer."""
         residual = x
         x = self.norm1(x)
         x = self.attn(x)
@@ -122,15 +126,28 @@ class TransformerEncoderLayer(BaseBackbone):
 
 @MODELS.register_module()
 class Autoformer(BaseBackbone):
-    # 3 parameters are needed to construct a layer,
-    # from left to right: embed_dim, num_head, mlp_ratio, depth
+    """_summary_
+
+    Args:
+        img_size (int, optional): _description_. Defaults to 224.
+        patch_size (int, optional): _description_. Defaults to 16.
+        in_channels (int, optional): _description_. Defaults to 3.
+        qkv_bias (bool, optional): _description_. Defaults to True.
+        norm_cfg (Dict, optional): _description_.
+            Defaults to dict(type='mmrazor.DynamicLayerNorm').
+        act_cfg (Dict, optional): _description_. Defaults to dict(type='GELU').
+        final_norm (bool, optional): _description_. Defaults to True.
+        drop_out (float, optional): _description_. Defaults to 0..
+        init_cfg (_type_, optional): _description_. Defaults to None.
+    """
+    # supernet settings
     arch_settings = {
         'embed_dims': 640,
         'num_heads': 10,
         'mlp_ratios': 4.0,
         'depth': 16,
     }
-    # mlp_ratio, num_heads
+    # search space
     mutable_settings: Dict[str, List] = {
         'mlp_ratios': [3.0, 3.5, 4.0],  # mutable value
         'num_heads': [8, 9, 10],  # mutable value
@@ -148,6 +165,7 @@ class Autoformer(BaseBackbone):
                  final_norm: bool = True,
                  drop_out: float = 0.,
                  init_cfg=None) -> None:
+
         super().__init__(init_cfg)
 
         self.img_size = img_size
@@ -216,9 +234,11 @@ class Autoformer(BaseBackbone):
 
     @property
     def norm1(self):
+        """The first normalization."""
         return getattr(self, self.norm1_name)
 
     def make_layers(self, embed_dims, num_heads, mlp_ratios, depth):
+        """Build multiple TransformerEncoderLayers."""
         layers = []
         for _ in range(depth):
             layer = TransformerEncoderLayer(
@@ -232,6 +252,7 @@ class Autoformer(BaseBackbone):
         return DynamicSequential(*layers)
 
     def mutate(self):
+        """Mutate the autoformer."""
         # handle the mutation of depth
         self.blocks.register_mutable_attr('depth', self.mutable_depth)
 
@@ -262,6 +283,7 @@ class Autoformer(BaseBackbone):
                 self.last_mutable_embed_dim.derive_same_mutable())
 
     def forward(self, x: Tensor) -> Tensor:
+        """Forward of Autoformer."""
         B = x.shape[0]
         x = self.patch_embed(x)
 
@@ -287,7 +309,3 @@ class Autoformer(BaseBackbone):
             if i == len(self.blocks) - 1 and self.final_norm:
                 x = self.norm1(x)
         return torch.mean(x[:, 1:], dim=1)
-
-
-if __name__ == '__main__':
-    m = Autoformer()

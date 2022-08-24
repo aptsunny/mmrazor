@@ -42,7 +42,7 @@ class DynamicMixin(ABC):
         pass
 
     def get_mutable_attr(self, attr: str) -> BaseMutable:
-
+        """Access the mutable attributes."""
         self.check_mutable_attr_valid(attr)
         if attr in self.attr_mappings:
             attr_map = self.attr_mappings[attr]
@@ -88,6 +88,7 @@ class DynamicMixin(ABC):
             check_fixed(mutable)
 
     def check_mutable_attr_valid(self, attr):
+        """Check whether the attribute is valid."""
         assert attr in self.attr_mappings or \
             attr in self.accepted_mutable_attrs
 
@@ -163,7 +164,7 @@ class DynamicBatchNormMixin(DynamicChannelMixin):
             raise NotImplementedError
 
     def _register_mutable_attr(self, attr, mutable):
-
+        """Register `num_features`."""
         if attr == 'num_features':
             self._register_mutable_num_features(mutable)
         else:
@@ -583,6 +584,7 @@ class DynamicPatchEmbedMixin(DynamicChannelMixin):
             raise NotImplementedError
 
     def _register_mutable_attr(self, attr, mutable):
+        """Register `embed_dims`."""
         if attr == 'embed_dims':
             self._register_embed_dims(mutable)
         else:
@@ -590,6 +592,7 @@ class DynamicPatchEmbedMixin(DynamicChannelMixin):
 
     def _register_embed_dims(self: PatchEmbed,
                              mutable_patch_embedding: BaseMutable) -> None:
+        """Register mutable embedding dimension."""
         mask_size = mutable_patch_embedding.current_mask.size(0)
 
         if mask_size != self.embed_dims:
@@ -661,6 +664,7 @@ class DynamicRelativePosition2DMixin(DynamicChannelMixin):
             raise NotImplementedError
 
     def _register_mutable_attr(self, attr, mutable):
+        """Register `head_dims`"""
         if attr == 'head_dims':
             self._registry_mutable_head_dims(mutable)
         else:
@@ -668,10 +672,12 @@ class DynamicRelativePosition2DMixin(DynamicChannelMixin):
 
     def _registry_mutable_head_dims(self: RelativePosition2D,
                                     mutable_head_dims: BaseMutable) -> None:
+        """Register head dimension."""
         assert hasattr(self, 'mutable_attrs')
         self.mutable_attrs['head_dims'] = mutable_head_dims
 
     def forward_mixin(self: RelativePosition2D, length_q, length_k) -> Tensor:
+        """Forward of Relative Position."""
         if self.mutable_head_dims is None:
             self.current_head_dim = self.head_dims
         else:
@@ -779,6 +785,7 @@ class DynamicMHAMixin(DynamicMixin):
 
     def _register_mutable_num_heads(self: MultiheadAttention,
                                     mutable_num_heads):
+        """Register the mutable number of heads."""
         assert hasattr(self, 'mutable_attrs')
         current_choice = mutable_num_heads.current_choice
         if current_choice > self.num_heads:
@@ -790,6 +797,7 @@ class DynamicMHAMixin(DynamicMixin):
 
     def _register_mutable_embed_dims(self: MultiheadAttention,
                                      mutable_embed_dims):
+        """Register mutable embedding dimension."""
         assert hasattr(self, 'mutable_attrs')
         mask_size = mutable_embed_dims.current_mask.size(0)
         if mask_size != self.embed_dims:
@@ -801,13 +809,15 @@ class DynamicMHAMixin(DynamicMixin):
 
     def _register_mutable_q_embed_dims(self: MultiheadAttention,
                                        mutable_q_embed_dims):
+        """Register intermediate mutable embedding dimension."""
         assert hasattr(self, 'mutable_attrs')
         self.mutable_attrs['q_embed_dims'] = mutable_q_embed_dims
 
     def _get_dynamic_proj_params(
             self: MultiheadAttention,
             w: nn.Linear) -> Tuple[Tensor, Optional[Tensor]]:
-        """
+        """Get parameters of dynamic projection.
+
         Note:
             The input dimension is decided by `mutable_q_embed_dims`.
             The output dimension is decided by `mutable_embed_dims`.
@@ -835,7 +845,8 @@ class DynamicMHAMixin(DynamicMixin):
     def _get_dynamic_qkv_params(
             self: MultiheadAttention,
             w: nn.Linear) -> Tuple[Tensor, Optional[Tensor]]:
-        """
+        """Get parameters of dynamic QKV.
+
         Note:
             The output dimension is decided by `mutable_q_embed_dims`.
             The input dimension is decided by `mutable_embed_dims`.
