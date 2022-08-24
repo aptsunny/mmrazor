@@ -12,6 +12,7 @@ from torch.nn.modules.batchnorm import _BatchNorm
 
 from mmrazor.models.mutables.base_mutable import BaseMutable
 from mmrazor.models.mutables.mutable_value import MutableValue
+from .dynamic_protocol import DynamicMHAProtocol, DynamicRPProtocol
 from .utils import MultiheadAttention, RelativePosition2D
 
 
@@ -631,7 +632,7 @@ class DynamicPatchEmbedMixin(DynamicChannelMixin):
         return static_patch_embed
 
 
-class DynamicRelativePosition2DMixin(DynamicChannelMixin):
+class DynamicRelativePosition2DMixin(DynamicChannelMixin, DynamicRPProtocol):
 
     accepted_mutable_attrs: Set[str] = {'head_dims'}
     attr_mappings: Dict[str, str] = {
@@ -645,8 +646,7 @@ class DynamicRelativePosition2DMixin(DynamicChannelMixin):
         assert hasattr(self, 'mutable_attrs')
         return self.mutable_attrs['head_dims']
 
-    def register_mutable_attr(self: RelativePosition2D, attr: str,
-                              mutable: BaseMutable):
+    def register_mutable_attr(self, attr: str, mutable: BaseMutable):
         """Register attribute of mutable."""
         self.check_mutable_attr_valid(attr)
         if attr in self.attr_mappings:
@@ -670,13 +670,13 @@ class DynamicRelativePosition2DMixin(DynamicChannelMixin):
         else:
             raise NotImplementedError
 
-    def _registry_mutable_head_dims(self: RelativePosition2D,
+    def _registry_mutable_head_dims(self,
                                     mutable_head_dims: BaseMutable) -> None:
         """Register head dimension."""
         assert hasattr(self, 'mutable_attrs')
         self.mutable_attrs['head_dims'] = mutable_head_dims
 
-    def forward_mixin(self: RelativePosition2D, length_q, length_k) -> Tensor:
+    def forward_mixin(self, length_q, length_k) -> Tensor:
         """Forward of Relative Position."""
         if self.mutable_head_dims is None:
             self.current_head_dim = self.head_dims
@@ -724,7 +724,7 @@ class DynamicRelativePosition2DMixin(DynamicChannelMixin):
 
         return embeddings
 
-    def to_static_op(self: RelativePosition2D) -> nn.Module:
+    def to_static_op(self) -> nn.Module:
         """Convert dynamic RelativePosition2D to static One."""
         self.check_if_mutables_fixed()
 
@@ -740,7 +740,7 @@ class DynamicRelativePosition2DMixin(DynamicChannelMixin):
         return static_relative_position
 
 
-class DynamicMHAMixin(DynamicMixin):
+class DynamicMHAMixin(DynamicMixin, DynamicMHAProtocol):
     """_summary_
 
     Note:
@@ -771,8 +771,7 @@ class DynamicMHAMixin(DynamicMixin):
         assert hasattr(self, 'mutable_attrs')
         return self.mutable_attrs['q_embed_dims']
 
-    def register_mutable_attr(self: MultiheadAttention, attr: str,
-                              mutable: BaseMutable):
+    def register_mutable_attr(self, attr: str, mutable: BaseMutable):
         """Register attribute of mutable."""
         if attr == 'num_heads':
             self._register_mutable_num_heads(mutable)
@@ -783,8 +782,7 @@ class DynamicMHAMixin(DynamicMixin):
         else:
             raise NotImplementedError
 
-    def _register_mutable_num_heads(self: MultiheadAttention,
-                                    mutable_num_heads):
+    def _register_mutable_num_heads(self, mutable_num_heads):
         """Register the mutable number of heads."""
         assert hasattr(self, 'mutable_attrs')
         current_choice = mutable_num_heads.current_choice
@@ -795,8 +793,7 @@ class DynamicMHAMixin(DynamicMixin):
 
         self.mutable_attrs['num_heads'] = mutable_num_heads
 
-    def _register_mutable_embed_dims(self: MultiheadAttention,
-                                     mutable_embed_dims):
+    def _register_mutable_embed_dims(self, mutable_embed_dims):
         """Register mutable embedding dimension."""
         assert hasattr(self, 'mutable_attrs')
         mask_size = mutable_embed_dims.current_mask.size(0)
@@ -807,15 +804,12 @@ class DynamicMHAMixin(DynamicMixin):
 
         self.mutable_attrs['embed_dims'] = mutable_embed_dims
 
-    def _register_mutable_q_embed_dims(self: MultiheadAttention,
-                                       mutable_q_embed_dims):
+    def _register_mutable_q_embed_dims(self, mutable_q_embed_dims):
         """Register intermediate mutable embedding dimension."""
         assert hasattr(self, 'mutable_attrs')
         self.mutable_attrs['q_embed_dims'] = mutable_q_embed_dims
 
-    def _get_dynamic_proj_params(
-            self: MultiheadAttention,
-            w: nn.Linear) -> Tuple[Tensor, Optional[Tensor]]:
+    def _get_dynamic_proj_params(self, w: nn.Linear) -> Tuple[Tensor, Tensor]:
         """Get parameters of dynamic projection.
 
         Note:
@@ -842,9 +836,7 @@ class DynamicMHAMixin(DynamicMixin):
 
         return weight, bias
 
-    def _get_dynamic_qkv_params(
-            self: MultiheadAttention,
-            w: nn.Linear) -> Tuple[Tensor, Optional[Tensor]]:
+    def _get_dynamic_qkv_params(self, w: nn.Linear) -> Tuple[Tensor, Tensor]:
         """Get parameters of dynamic QKV.
 
         Note:
@@ -871,7 +863,7 @@ class DynamicMHAMixin(DynamicMixin):
 
         return weight, bias
 
-    def to_static_op(self: MultiheadAttention) -> nn.Module:
+    def to_static_op(self) -> nn.Module:
         """Convert dynamic MultiheadAttention to static one."""
         self.check_if_mutables_fixed()
 
