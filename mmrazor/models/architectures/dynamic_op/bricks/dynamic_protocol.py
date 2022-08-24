@@ -9,8 +9,8 @@ else:
 
 import torch.nn as nn
 
-from .utils import RelativePosition2D
 from mmrazor.models.mutables.base_mutable import BaseMutable
+from .utils import RelativePosition2D
 
 
 class DynamicMHAProtocol(Protocol):
@@ -54,6 +54,7 @@ class DynamicMHAProtocol(Protocol):
     @property
     def attn_drop_rate(self) -> float:
         ...
+
 
 class DynamicRPProtocol(Protocol):
 
