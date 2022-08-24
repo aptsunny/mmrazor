@@ -580,7 +580,7 @@ class DynamicPatchEmbedMixin(DynamicChannelMixin):
 
         self.mutable_attrs['embed_dims'] = mutable_patch_embedding
 
-    def _get_dynamic_params(self: PatchEmbed) -> Optional[torch.Tensor]:
+    def _get_dynamic_params(self: PatchEmbed) -> torch.Tensor:
         """Get mask of ``embed_dims``"""
         if 'embed_dims' not in self.mutable_attrs:
             return self.projection.weight, self.projection.bias
@@ -622,7 +622,7 @@ class DynamicRelativePosition2DMixin(DynamicChannelMixin):
         assert hasattr(self, 'mutable_attrs')
         return self.mutable_attrs['head_dims']
 
-    def register_mutable_attr(self: MultiheadAttention, attr: str,
+    def register_mutable_attr(self: RelativePosition2D, attr: str,
                               mutable: BaseMutable):
         self.check_mutable_attr_valid(attr)
         if attr in self.attr_mappings:

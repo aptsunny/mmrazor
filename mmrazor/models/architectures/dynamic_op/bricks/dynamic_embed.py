@@ -25,7 +25,7 @@ class DynamicPatchEmbed(PatchEmbed, DynamicPatchEmbedMixin):
     """
     accpeted_mutables = {'embed_dims'}
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.mutable_attrs: Dict[str, BaseMutable] = nn.ModuleDict()
@@ -35,7 +35,7 @@ class DynamicPatchEmbed(PatchEmbed, DynamicPatchEmbedMixin):
         return PatchEmbed
 
     @classmethod
-    def convert_from(cls, module):
+    def convert_from(cls, module) -> nn.Module:
         """Convert a PatchEmbed to a DynamicPatchEmbed."""
 
         dynamic_patch_embed = cls(
@@ -48,7 +48,7 @@ class DynamicPatchEmbed(PatchEmbed, DynamicPatchEmbedMixin):
 
         return dynamic_patch_embed
 
-    def forward(self, x: Tensor):
+    def forward(self, x: Tensor) -> Tensor:
         weight, bias = self._get_dynamic_params()
         x = F.conv2d(
             x,
