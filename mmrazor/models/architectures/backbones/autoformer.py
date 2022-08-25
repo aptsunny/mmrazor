@@ -18,19 +18,23 @@ from ...mutables.base_mutable import BaseMutable
 
 
 class TransformerEncoderLayer(BaseBackbone):
-    """_summary_
+    """Autoformer block.
 
     Args:
-        embed_dims (int): _description_
-        num_heads (int): _description_
-        mlp_ratio (List): _description_
-        drop_rate (float): _description_
-        attn_drop_rate (float): _description_
-        qkv_bias (bool, optional): _description_. Defaults to True.
-        act_cfg (Dict, optional): _description_. Defaults to dict(type='GELU').
-        norm_cfg (Dict, optional): _description_.
-        init_cfg=None.
-    """
+        embed_dims (int): Number of input channels.
+        num_heads (int): Number of attention heads.
+        mlp_ratio (List): Ratio of ffn.
+        drop_rate (float): The drop path rate of ffn.
+            Defaults to 0.
+        attn_drop_rate (float): The drop path rate after attention.
+            Defaults to 0.
+        qkv_bias (bool, optional): Whether keep bias of qkv.
+            Defaults to True.
+        act_cfg (Dict, optional): The config for acitvation function.
+            Defaults to dict(type='GELU').
+        norm_cfg (Dict, optional): The config for normalization.
+        init_cfg (Dict, optional): The config for initialization.
+            Defaults to None.    """
 
     def __init__(self,
                  embed_dims: Union[int, BaseMutable],
@@ -126,19 +130,26 @@ class TransformerEncoderLayer(BaseBackbone):
 
 @MODELS.register_module()
 class Autoformer(BaseBackbone):
-    """_summary_
+    """Autoformer backbone.
 
     Args:
-        img_size (int, optional): _description_. Defaults to 224.
-        patch_size (int, optional): _description_. Defaults to 16.
-        in_channels (int, optional): _description_. Defaults to 3.
-        qkv_bias (bool, optional): _description_. Defaults to True.
-        norm_cfg (Dict, optional): _description_.
+        img_size (int, optional): The image size of input.
+            Defaults to 224.
+        patch_size (int, optional): The patch size of autoformer.
+            Defaults to 16.
+        in_channels (int, optional): The input channel dimension.
+            Defaults to 3.
+        qkv_bias (bool, optional): Whether to keep bias of qkv.
+            Defaults to True.
+        norm_cfg (Dict, optional): The config of normalization.
             Defaults to dict(type='mmrazor.DynamicLayerNorm').
-        act_cfg (Dict, optional): _description_. Defaults to dict(type='GELU').
-        final_norm (bool, optional): _description_. Defaults to True.
-        drop_out (float, optional): _description_. Defaults to 0..
-        init_cfg (_type_, optional): _description_. Defaults to None.
+        act_cfg (Dict, optional): The config of activation functions.
+            Defaults to dict(type='GELU').
+        final_norm (bool, optional): Whether use final normalization.
+            Defaults to True.
+        drop_out (float, optional): The dropout rate. Defaults to 0..
+        init_cfg (Dict, optional): The config for initialization.
+            Defaults to None.
     """
     # supernet settings
     arch_settings = {
@@ -164,7 +175,7 @@ class Autoformer(BaseBackbone):
                  act_cfg: Dict = dict(type='GELU'),
                  final_norm: bool = True,
                  drop_out: float = 0.,
-                 init_cfg=None) -> None:
+                 init_cfg: Dict = None) -> None:
 
         super().__init__(init_cfg)
 
