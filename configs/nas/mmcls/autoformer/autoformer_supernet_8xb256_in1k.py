@@ -14,8 +14,8 @@ data_preprocessor = dict(
 )
 
 supernet = dict(
-    type='mmrazor.SearchableImageClassifier',
-    # data_preprocessor=_base_.preprocess_cfg,
+    type='ImageClassifier',
+    data_preprocessor=_base_.preprocess_cfg,
     backbone=dict(type='Autoformer'),
     neck=dict(type='GlobalAveragePooling'),
     head=dict(
@@ -31,16 +31,15 @@ supernet = dict(
         topk=(1, 5)),
 )
 
-# !autoslim algorithm config
 num_samples = 2
 model = dict(
     type='mmrazor.Autoformer',
-    num_samples=num_samples,
     architecture=supernet,
-    data_preprocessor=data_preprocessor,
+    fix_subnet=None,
     mutators=dict(
         channel_mutator=dict(type='mmrazor.BigNASChannelMutator'),
-        value_mutator=dict(type='mmrazor.DynamicValueMutator')))
+        value_mutator=dict(type='mmrazor.DynamicValueMutator')),
+    data_preprocessor=data_preprocessor)
 
 # model_wrapper_cfg = dict(
 #     type='mmrazor.BigNASDDP',

@@ -1,29 +1,26 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 from typing import Dict, List, Optional, Union
 
+import mmengine.dist as dist
 import torch
 from mmengine import BaseDataElement
 from mmengine.model import BaseModel
 from torch import nn
-from torch.nn.modules.batchnorm import _BatchNorm
 
-from mmrazor.models.mutators import OneShotModuleMutator
+from mmrazor.models.mutators.base_mutator import BaseMutator
 from mmrazor.registry import MODELS
-from mmrazor.utils import SingleMutatorRandomSubnet, ValidFixMutable
+from mmrazor.utils import ValidFixMutable
 from ..base import BaseAlgorithm, LossResults
 
 
 @MODELS.register_module()
 class Autoformer(BaseAlgorithm):
-    """Implementation of `Autoformer <https://arxiv.org/abs/1904.00420>`."""
-
-    # TODO fix ea's name in doc-string.
+    """Implementation of `Autoformer <https://arxiv.org/abs/xxx.xxx>`."""
 
     def __init__(self,
                  architecture: Union[BaseModel, Dict],
-                 mutator: Optional[Union[OneShotModuleMutator, Dict]] = None,
+                 mutators: Optional[Union[BaseMutator, Dict]] = None,
                  fix_subnet: Optional[ValidFixMutable] = None,
-                 norm_training: bool = False,
                  data_preprocessor: Optional[Union[dict, nn.Module]] = None,
                  init_cfg: Optional[dict] = None):
         super().__init__(architecture, data_preprocessor, init_cfg)
@@ -38,33 +35,36 @@ class Autoformer(BaseAlgorithm):
             load_fix_subnet(self.architecture, fix_subnet)
             self.is_supernet = False
         else:
-            assert mutator is not None, \
+            assert mutators is not None, \
                 'mutator cannot be None when fix_subnet is None.'
-            if isinstance(mutator, OneShotModuleMutator):
-                self.mutator = mutator
-            elif isinstance(mutator, dict):
-                self.mutator = MODELS.build(mutator)
+            if isinstance(mutators, BaseMutator):
+                self.mutator = mutators
+            elif isinstance(mutators, dict):
+                built_mutators: Dict = dict()
+                for name, mutator_cfg in mutators.items():
+                    mutator = MODELS.build(mutator_cfg)
+                    built_mutators[name] = mutator
+                    mutator.prepare_from_supernet(self.architecture)
+                self.mutators = built_mutators
             else:
-                raise TypeError('mutator should be a `dict` or '
-                                f'`OneShotModuleMutator` instance, but got '
+                raise TypeError('mutator should be a `dict` or belong to '
+                                f'`BaseMutator` instance, but got '
                                 f'{type(mutator)}')
 
-            # Mutator is an essential component of the NAS algorithm. It
-            # provides some APIs commonly used by NAS.
-            # Before using it, you must do some preparations according to
-            # the supernet.
-            self.mutator.prepare_from_supernet(self.architecture)
             self.is_supernet = True
 
-        self.norm_training = norm_training
-
-    def sample_subnet(self) -> SingleMutatorRandomSubnet:
+    def sample_subnet(self) -> Dict:
         """Random sample subnet by mutator."""
-        return self.mutator.sample_choices()
+        subnet_dict = dict()
+        for name, mutator in self.mutators.items():
+            subnet_dict[name] = mutator.sample_choices()
+        dist.broadcast_object_list([subnet_dict])
+        return subnet_dict
 
-    def set_subnet(self, subnet: SingleMutatorRandomSubnet):
+    def set_subnet(self, subnet_dict: Dict) -> None:
         """Set the subnet sampled by :meth:sample_subnet."""
-        self.mutator.set_choices(subnet)
+        for name, mutator in self.mutators.items():
+            mutator.set_choices(subnet_dict[name])
 
     def loss(
         self,
@@ -75,16 +75,4 @@ class Autoformer(BaseAlgorithm):
         if self.is_supernet:
             random_subnet = self.sample_subnet()
             self.set_subnet(random_subnet)
-            return self.architecture(batch_inputs, data_samples, mode='loss')
-        else:
-            return self.architecture(batch_inputs, data_samples, mode='loss')
-
-    def train(self, mode=True):
-        """Convert the model into eval mode while keep normalization layer
-        unfreezed."""
-
-        super().train(mode)
-        if self.norm_training and not mode:
-            for module in self.architecture.modules():
-                if isinstance(module, _BatchNorm):
-                    module.training = True
+        return self.architecture(batch_inputs, data_samples, mode='loss')

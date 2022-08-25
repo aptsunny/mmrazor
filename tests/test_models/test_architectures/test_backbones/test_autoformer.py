@@ -4,7 +4,7 @@ from unittest import TestCase
 
 import torch
 
-from mmrazor.models.architectures import Autoformer
+from mmrazor.models.architectures.backbones import Autoformer
 from mmrazor.models.mutators.channel_mutator import BigNASChannelMutator
 from mmrazor.models.mutators.value_mutator import DynamicValueMutator
 
@@ -15,6 +15,8 @@ class TestAutoformer(TestCase):
         m = Autoformer()
         i = torch.randn(8, 3, 224, 224)
         o = m(i)
+
+        print(o.shape)
 
         assert o is not None
 
