@@ -319,4 +319,5 @@ class AutoformerBackbone(BaseBackbone):
             x = block(x)
             if i == len(self.blocks) - 1 and self.final_norm:
                 x = self.norm1(x)
-        return torch.mean(x[:, 1:], dim=1)
+
+        return tuple(torch.mean(x[:, 1:], dim=1))

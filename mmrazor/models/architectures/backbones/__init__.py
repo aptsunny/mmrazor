@@ -1,6 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 from .attentive_mobilenet import AttentiveMobileNet
-from .autoformer import AutoformerBackbone
+from .autoformer_backbone import AutoformerBackbone
 from .bignas_mobilenet import BigNASMobileNet
 from .darts_backbone import DartsBackbone
 from .searchable_mobilenet import SearchableMobileNet
