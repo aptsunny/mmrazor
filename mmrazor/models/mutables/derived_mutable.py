@@ -15,7 +15,6 @@ import torch
 from mmengine.logging import print_log
 from torch import Tensor
 
-from mmrazor.models.mutables.mutable_value import MutableValue
 from ..utils import make_divisible
 from .base_mutable import CHOICE_TYPE, BaseMutable
 
@@ -134,12 +133,16 @@ class DerivedMethodMixin:
 
     def derive_expand_mutable(
             self: MutableProtocol,
-            expand_ratio: Union[int, MutableValue]) -> 'DerivedMutable':
+            expand_ratio: Union[int, BaseMutable]) -> 'DerivedMutable':
         """Derive expand mutable, usually used with `expand_ratio`."""
+        from .mutable_value import MutableValue
+
+        # avoid circular import
+
         if isinstance(expand_ratio, int):
             choice_fn = _expand_choice_fn(self, expand_ratio=expand_ratio)
         elif isinstance(expand_ratio, MutableValue):
-            current_ratio = expand_ratio.current_choice
+            current_ratio: int = expand_ratio.current_choice
             choice_fn = _expand_choice_fn(self, expand_ratio=current_ratio)
         else:
             raise NotImplementedError(
@@ -150,9 +153,8 @@ class DerivedMethodMixin:
 
             if isinstance(expand_ratio, int):
                 mask_fn = _expand_mask_fn(self, expand_ratio=expand_ratio)
-            elif isinstance(expand_ratio, MutableValue):
-                mask_fn = _expand_mask_fn(
-                    self, expand_ratio=expand_ratio.current_choice)
+            elif isinstance(expand_ratio, BaseMutable):
+                mask_fn = _expand_mask_fn(self, expand_ratio=current_ratio)
             else:
                 raise NotImplementedError(
                     f'Not support type of ratio: {type(expand_ratio)}')
@@ -160,9 +162,12 @@ class DerivedMethodMixin:
         return DerivedMutable(choice_fn=choice_fn, mask_fn=mask_fn)
 
     def derive_divide_mutable(self: MutableProtocol,
-                              ratio: Union[int, MutableValue],
+                              ratio: Union[int, BaseMutable],
                               divisor: int = 8) -> 'DerivedMutable':
         """Derive divide mutable, usually used with `make_divisable`."""
+        from .mutable_value import MutableValue
+
+        # avoid circular import
         if isinstance(ratio, int):
             choice_fn = _divide_choice_fn(self, ratio=ratio, divisor=divisor)
         elif isinstance(ratio, MutableValue):
