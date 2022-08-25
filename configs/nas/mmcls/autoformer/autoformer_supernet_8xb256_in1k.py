@@ -14,10 +14,10 @@ data_preprocessor = dict(
 )
 
 supernet = dict(
-    type='ImageClassifier',
+    type='mmcls.ImageClassifier',
     data_preprocessor=_base_.preprocess_cfg,
-    backbone=dict(type='Autoformer'),
-    neck=dict(type='GlobalAveragePooling'),
+    backbone=dict(type='AutoformerBackbone'),
+    neck=dict(type='mmcls.GlobalAveragePooling'),
     head=dict(
         type='DynamicLinearClsHead',
         num_classes=1000,

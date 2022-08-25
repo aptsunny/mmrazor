@@ -129,7 +129,7 @@ class TransformerEncoderLayer(BaseBackbone):
 
 
 @MODELS.register_module()
-class Autoformer(BaseBackbone):
+class AutoformerBackbone(BaseBackbone):
     """Autoformer backbone.
 
     Args:

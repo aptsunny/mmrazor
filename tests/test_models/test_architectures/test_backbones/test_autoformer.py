@@ -4,7 +4,7 @@ from unittest import TestCase
 
 import torch
 
-from mmrazor.models.architectures.backbones import Autoformer
+from mmrazor.models.architectures.backbones import AutoformerBackbone
 from mmrazor.models.mutators.channel_mutator import BigNASChannelMutator
 from mmrazor.models.mutators.value_mutator import DynamicValueMutator
 
@@ -12,7 +12,7 @@ from mmrazor.models.mutators.value_mutator import DynamicValueMutator
 class TestAutoformer(TestCase):
 
     def test_init(self) -> None:
-        m = Autoformer()
+        m = AutoformerBackbone()
         i = torch.randn(8, 3, 224, 224)
         o = m(i)
 
@@ -21,7 +21,7 @@ class TestAutoformer(TestCase):
         assert o is not None
 
     def test_mutator(self):
-        m = Autoformer()
+        m = AutoformerBackbone()
         cm = BigNASChannelMutator()
         cm.prepare_from_supernet(m)
         print(cm.search_groups)
