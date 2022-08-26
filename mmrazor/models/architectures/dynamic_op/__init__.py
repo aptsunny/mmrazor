@@ -10,6 +10,7 @@ from .bricks import (BigNasConv2d, DynamicBatchNorm1d, DynamicBatchNorm2d,
                      RelativePosition2D)
 from .default_dynamic_ops import (DynamicBatchNorm, DynamicGroupNorm,
                                   DynamicInstanceNorm)
+from .head import DynamicLinearClsHead
 from .slimmable_dynamic_ops import SwitchableBatchNorm2d
 
 __all__ = [
@@ -20,5 +21,5 @@ __all__ = [
     'DynamicBatchNormMixin', 'DynamicLinearMixin', 'DynamicLayerNorm',
     'DynamicMultiheadAttention', 'MultiheadAttention',
     'DynamicRelativePosition2D', 'RelativePosition2D', 'DynamicSequential',
-    'DynamicPatchEmbed', 'DynamicInputResizer'
+    'DynamicPatchEmbed', 'DynamicInputResizer', 'DynamicLinearClsHead'
 ]

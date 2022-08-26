@@ -14,16 +14,17 @@ data_preprocessor = dict(
 )
 
 supernet = dict(
-    type='mmrazor.SearchableImageClassifier',
+    _scope_='mmrazor',
+    type='SearchableImageClassifier',
     data_preprocessor=_base_.preprocess_cfg,
-    backbone=dict(type='mmrazor.AutoformerBackbone'),
+    backbone=dict(type='AutoformerBackbone'),
     neck=dict(type='mmcls.GlobalAveragePooling'),
     head=dict(
-        type='mmrazor.DynamicLinearClsHead',
+        type='DynamicLinearClsHead',
         num_classes=1000,
         in_channels=640,
         loss=dict(
-            type='LabelSmoothLoss',
+            type='mmcls.LabelSmoothLoss',
             num_classes=1000,
             label_smooth_val=0.1,
             mode='original',

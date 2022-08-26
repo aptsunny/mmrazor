@@ -25,7 +25,9 @@ class DynamicLinearClsHead(ClsHead, DynamicHead):
     Args:
         num_classes (int): _description_
         in_channels (int): _description_
-        init_cfg (Optional[dict], optional): _description_. Defaults to dict( type='Normal', layer='DynamicLinear', std=0.01).
+        init_cfg (Optional[dict], optional): _description_.
+            Defaults to dict(type='Normal',
+                        layer='DynamicLinear', std=0.01).
 
     Raises:
         ValueError: _description_

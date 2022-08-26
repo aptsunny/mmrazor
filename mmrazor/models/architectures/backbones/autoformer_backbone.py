@@ -199,7 +199,7 @@ class AutoformerBackbone(BaseBackbone):
         self.embed_dim_range: List = self.mutable_settings['embed_dims']
 
         # patch embeddings
-        self.last_mutable_embed_dim = None
+        self.last_mutable = None
         self.patch_embed = DynamicPatchEmbed(
             img_size=self.img_size,
             in_channels=self.in_channels,
@@ -270,7 +270,7 @@ class AutoformerBackbone(BaseBackbone):
         # handle the mutation of patch embed
         self.patch_embed.register_mutable_attr(
             'embed_dims', self.mutable_embed_dims.derive_same_mutable())
-        self.last_mutable_embed_dim = self.mutable_embed_dims
+        self.last_mutable = self.mutable_embed_dims
 
         # handle the dependencies of TransformerEncoderLayers
         for i in range(self.depth):  # max depth here
@@ -282,16 +282,14 @@ class AutoformerBackbone(BaseBackbone):
                 value_list=self.mlp_ratio_range, default_value=self.mlp_ratios)
 
             layer.mutate_encoder_layer(
-                mutable_embed_dims=self.last_mutable_embed_dim.
-                derive_same_mutable(),
+                mutable_embed_dims=self.last_mutable.derive_same_mutable(),
                 mutable_num_heads=mutable_num_heads,
                 mutable_mlp_ratios=mutable_mlp_ratios)
 
         # handle the mutable of final norm
         if self.final_norm:
             self.norm1.register_mutable_attr(
-                'num_features',
-                self.last_mutable_embed_dim.derive_same_mutable())
+                'num_features', self.last_mutable.derive_same_mutable())
 
     def forward(self, x: Tensor) -> Tensor:
         """Forward of Autoformer."""
