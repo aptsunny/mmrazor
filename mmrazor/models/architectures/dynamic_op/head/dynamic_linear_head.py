@@ -1,5 +1,4 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-# Copyrigforward_trainht (c) OpenMMLab. All rights reserved.
 from abc import abstractmethod
 from typing import Optional, Tuple
 

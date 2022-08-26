@@ -5,9 +5,9 @@ from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 import torch
-from mmengine import BaseDataElement, fileio
 from mmengine.model import BaseModel, MMDistributedDataParallel
 from mmengine.optim import OptimWrapper
+from mmengine.structures import BaseDataElement, fileio
 from torch import nn
 
 from mmrazor.models.mutators import SlimmableChannelMutator

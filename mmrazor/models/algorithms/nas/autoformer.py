@@ -3,8 +3,8 @@ from typing import Dict, List, Optional, Union
 
 import mmengine.dist as dist
 import torch
-from mmengine import BaseDataElement
 from mmengine.model import BaseModel
+from mmengine.structures import BaseDataElement
 from torch import nn
 
 from mmrazor.models.mutators.base_mutator import BaseMutator
