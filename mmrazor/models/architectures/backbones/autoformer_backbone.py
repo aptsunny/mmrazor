@@ -85,22 +85,26 @@ class TransformerEncoderLayer(BaseBackbone):
                              mutable_num_heads: BaseMutable,
                              mutable_mlp_ratios: BaseMutable):
         """Mutate the mutables of encoder layer."""
+        # record the mutables
+        self.mutable_embed_dims = mutable_embed_dims
+        self.mutable_num_heads = mutable_num_heads
+        self.mutable_mlp_ratios = mutable_mlp_ratios
+        self.mutable_head_dims = OneShotMutableValue(
+            value_list=[64], default_value=64)
 
         # handle the mutable of the first dynamic LN
         self.norm1.register_mutable_attr('num_features', mutable_embed_dims)
 
         # handle the mutable in multihead attention
         mutable_q_embed_dims: OneShotMutableValue = mutable_num_heads.derive_expand_mutable(  # noqa: E501
-            64)
+            64)  # noqa: E501
         self.attn.register_mutable_attr('embed_dims', mutable_embed_dims)
         self.attn.register_mutable_attr('num_heads', mutable_num_heads)
         self.attn.register_mutable_attr('q_embed_dims', mutable_q_embed_dims)
         self.attn.rel_pos_embed_k.register_mutable_attr(
-            'head_dims',
-            mutable_q_embed_dims.derive_divide_mutable(mutable_num_heads))
+            'head_dims', self.mutable_head_dims)
         self.attn.rel_pos_embed_v.register_mutable_attr(
-            'head_dims',
-            mutable_q_embed_dims.derive_divide_mutable(mutable_num_heads))
+            'head_dims', self.mutable_head_dims)
 
         # handle the mutable of the second dynamic LN
         self.norm2.register_mutable_attr('num_features', mutable_embed_dims)
@@ -205,15 +209,11 @@ class AutoformerBackbone(BaseBackbone):
             in_channels=self.in_channels,
             embed_dims=self.embed_dims)
 
-        # mutable variables of autoformer
+        # # mutable variables of autoformer
         self.mutable_embed_dims = OneShotMutableChannel(
             num_channels=self.embed_dims,
             candidate_mode='number',
             candidate_choices=self.embed_dim_range)
-        self.mutable_num_heads = OneShotMutableValue(
-            value_list=self.num_head_range, default_value=self.num_heads)
-        self.mutable_mlp_ratios = OneShotMutableValue(
-            value_list=self.mlp_ratio_range, default_value=self.mlp_ratios)
         self.mutable_depth = OneShotMutableValue(
             value_list=self.depth_range, default_value=self.depth)
 
@@ -316,4 +316,4 @@ class AutoformerBackbone(BaseBackbone):
             if i == len(self.blocks) - 1 and self.final_norm:
                 x = self.norm1(x)
 
-        return tuple(torch.mean(x[:, 1:], dim=1))
+        return (torch.mean(x[:, 1:], dim=1), )

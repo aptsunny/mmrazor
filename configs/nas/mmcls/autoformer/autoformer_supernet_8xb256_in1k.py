@@ -18,7 +18,7 @@ supernet = dict(
     type='SearchableImageClassifier',
     data_preprocessor=data_preprocessor,
     backbone=dict(type='AutoformerBackbone'),
-    neck=dict(type='mmcls.GlobalAveragePooling'),
+    neck=None,
     head=dict(
         type='DynamicLinearClsHead',
         num_classes=1000,
@@ -41,16 +41,10 @@ model = dict(
         value_mutator=dict(type='mmrazor.DynamicValueMutator')),
 )
 
-# model_wrapper_cfg = dict(
-#     type='mmrazor.BigNASDDP',
-#     broadcast_buffers=False,
-#     find_unused_parameters=True)
-# optim_wrapper = dict(accumulative_counts=num_samples + 2)
-
 # learning policy
 max_epochs = 100
 param_scheduler = dict(end=max_epochs)
 
 # train, val, test setting
 train_cfg = dict(max_epochs=max_epochs)
-# val_cfg = dict(type='mmrazor.AutoSlimValLoop')
+find_unused_parameters = True

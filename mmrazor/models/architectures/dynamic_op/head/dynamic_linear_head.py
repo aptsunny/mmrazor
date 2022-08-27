@@ -34,8 +34,8 @@ class DynamicLinearClsHead(ClsHead, DynamicHead):
     """
 
     def __init__(self,
-                 num_classes: int,
-                 in_channels: int,
+                 num_classes: int = 1000,
+                 in_channels: int = 640,
                  init_cfg: Optional[dict] = dict(
                      type='Normal', layer='DynamicLinear', std=0.01),
                  **kwargs):
@@ -73,4 +73,3 @@ class DynamicLinearClsHead(ClsHead, DynamicHead):
         """Connect dynamic backbone."""
         self.fc.register_mutable_attr(
             'in_features', backbone_output_mutable.derive_same_mutable())
-        # mutate_in_features(backbone_output_mutable.derive_same_mutable())
