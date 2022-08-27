@@ -4,9 +4,9 @@ from typing import Dict, List, Optional, Union
 
 import mmengine.dist as dist
 import torch
+from mmengine.data import BaseDataElement
 from mmengine.model import BaseModel, MMDistributedDataParallel
 from mmengine.optim import OptimWrapper
-from mmengine.structures import BaseDataElement
 from torch import nn
 
 from mmrazor.models.distillers import ConfigurableDistiller

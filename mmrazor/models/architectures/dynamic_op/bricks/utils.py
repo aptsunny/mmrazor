@@ -3,7 +3,7 @@
 import torch
 import torch.nn as nn
 from mmengine.model import BaseModule
-from mmengine.model.weight_init import trunc_normal_
+from mmengine.model.utils import trunc_normal_
 from mmengine.registry import MODELS
 
 

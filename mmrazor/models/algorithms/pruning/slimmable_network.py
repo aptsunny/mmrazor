@@ -6,9 +6,9 @@ from typing import Dict, List, Optional, Union
 
 import torch
 from mmengine import fileio
+from mmengine.data import BaseDataElement
 from mmengine.model import BaseModel, MMDistributedDataParallel
 from mmengine.optim import OptimWrapper
-from mmengine.structures import BaseDataElement
 from torch import nn
 
 from mmrazor.models.mutators import SlimmableChannelMutator

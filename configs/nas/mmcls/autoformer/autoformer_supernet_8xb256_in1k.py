@@ -1,5 +1,5 @@
 _base_ = [
-    'mmrazor::_base_/settings/imagenet_bs2048_autoslim_pil.py',
+    'mmrazor::_base_/settings/imagenet_bs2048_autoslim.py',
     'mmcls::_base_/default_runtime.py',
 ]
 
@@ -16,7 +16,7 @@ data_preprocessor = dict(
 supernet = dict(
     _scope_='mmrazor',
     type='SearchableImageClassifier',
-    data_preprocessor=_base_.preprocess_cfg,
+    data_preprocessor=data_preprocessor,
     backbone=dict(type='AutoformerBackbone'),
     neck=dict(type='mmcls.GlobalAveragePooling'),
     head=dict(
@@ -32,7 +32,6 @@ supernet = dict(
         topk=(1, 5)),
 )
 
-num_samples = 2
 model = dict(
     type='mmrazor.Autoformer',
     architecture=supernet,
@@ -40,7 +39,7 @@ model = dict(
     mutators=dict(
         channel_mutator=dict(type='mmrazor.BigNASChannelMutator'),
         value_mutator=dict(type='mmrazor.DynamicValueMutator')),
-    data_preprocessor=data_preprocessor)
+)
 
 # model_wrapper_cfg = dict(
 #     type='mmrazor.BigNASDDP',

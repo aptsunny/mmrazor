@@ -310,8 +310,6 @@ class AutoformerBackbone(BaseBackbone):
 
         x = F.dropout(x, p=self.dropout)
 
-        x = x + self.pos_embed
-
         # dynamic depth
         for i, block in enumerate(self.blocks.pure_modules()):
             x = block(x)
