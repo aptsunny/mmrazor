@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 from mmengine.model import BaseModule
 from mmengine.model.utils import trunc_normal_
-from mmengine.registry import MODELS
 
 
 class RelativePosition2D(nn.Module):
@@ -131,7 +130,7 @@ class MultiheadAttention(BaseModule):
         self.max_relative_position = max_relative_position
         self.attn_drop_rate = attn_drop_rate
 
-        self.head_dims = embed_dims // num_heads  # unit
+        self.head_dims = 64  # unit
         self.scale = qk_scale or self.head_dims**-0.5
 
         self.w_qs = nn.Linear(
@@ -142,9 +141,10 @@ class MultiheadAttention(BaseModule):
             self.input_dims, num_heads * self.head_dims, bias=qkv_bias)
 
         self.attn_drop = nn.Dropout(attn_drop_rate)
-        self.proj = nn.Linear(embed_dims, embed_dims, bias=proj_bias)
+        self.proj = nn.Linear(
+            num_heads * self.head_dims, embed_dims, bias=proj_bias)
         self.proj_drop = nn.Dropout(proj_drop)
-        self.out_drop = MODELS.build(dropout_layer)
+        self.out_drop = nn.Dropout(dropout_layer['drop_prob'])
 
         # image relative position encoding
         if self.relative_position:

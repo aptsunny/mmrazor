@@ -35,7 +35,7 @@ test_pipeline = [
     dict(type='mmcls.LoadImageFromFile'),
     dict(
         type='mmcls.ResizeEdge',
-        scale=256,
+        scale=248,
         edge='short',
         backend='pillow',
         interpolation='bicubic'),

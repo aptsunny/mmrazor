@@ -45,7 +45,8 @@ class TransformerEncoderLayer(BaseBackbone):
                  attn_drop_rate: float,
                  qkv_bias: bool = True,
                  act_cfg: Dict = dict(type='GELU'),
-                 norm_cfg: Dict = dict(type='mmrazor.DynamicLayerNorm'),
+                 norm_cfg: Dict = dict(
+                     _scope_='mmrazor', type='DynamicLayerNorm'),
                  init_cfg: Dict = None) -> None:
         super().__init__(init_cfg)
 
@@ -158,7 +159,8 @@ class AutoformerBackbone(BaseBackbone):
     """
     # supernet settings
     arch_settings = {
-        'embed_dims': 640,
+        # 'embed_dims': 640,
+        'embed_dims': 624,
         'num_heads': 10,
         'mlp_ratios': 4.0,
         'depth': 16,
@@ -314,7 +316,6 @@ class AutoformerBackbone(BaseBackbone):
         # dynamic depth
         for i, block in enumerate(self.blocks.pure_modules()):
             x = block(x)
-            if i == len(self.blocks) - 1 and self.final_norm:
-                x = self.norm1(x)
-
+        if self.final_norm:
+            x = self.norm1(x)
         return (torch.mean(x[:, 1:], dim=1), )

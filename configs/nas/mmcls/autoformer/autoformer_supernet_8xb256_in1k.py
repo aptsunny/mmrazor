@@ -17,12 +17,13 @@ supernet = dict(
     _scope_='mmrazor',
     type='SearchableImageClassifier',
     data_preprocessor=data_preprocessor,
-    backbone=dict(type='AutoformerBackbone'),
+    backbone=dict(_scope_='mmrazor', type='AutoformerBackbone'),
     neck=None,
     head=dict(
+        _scope_='mmrazor',
         type='DynamicLinearClsHead',
         num_classes=1000,
-        in_channels=640,
+        in_channels=624,
         loss=dict(
             type='mmcls.LabelSmoothLoss',
             num_classes=1000,
@@ -33,7 +34,8 @@ supernet = dict(
 )
 
 model = dict(
-    type='mmrazor.Autoformer',
+    _scope_='mmrazor',
+    type='Autoformer',
     architecture=supernet,
     fix_subnet=None,
     mutators=dict(

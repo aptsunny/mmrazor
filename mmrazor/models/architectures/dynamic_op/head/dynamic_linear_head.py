@@ -59,7 +59,7 @@ class DynamicLinearClsHead(ClsHead, DynamicHead):
         """
         # The LinearClsHead doesn't have other module, just return after
         # unpacking.
-        return feats[-1]
+        return feats[0]
 
     def forward(self, feats: Tuple[torch.Tensor]) -> torch.Tensor:
         """The forward process."""
