@@ -8,7 +8,9 @@ from mmrazor.models.mutables.base_mutable import BaseMutable
 
 
 class DynamicOP(ABC):
-    """Base class for dynamic OP. A dynamic OP usually consists of a normal
+    """Base class for dynamic OP.
+
+    A dynamic OP usually consists of a normal
     static OP and mutables, where mutables are used to control the searchable
     (mutable) part of the dynamic OP.
     Note:
@@ -26,6 +28,7 @@ class DynamicOP(ABC):
     @abstractmethod
     def to_static_op(self) -> nn.Module:
         """Convert dynamic OP to static OP.
+
         Note:
             The forward result for the same input between dynamic OP and its
             corresponding static OP must be same.
@@ -35,6 +38,7 @@ class DynamicOP(ABC):
 
     def check_if_mutables_fixed(self) -> None:
         """Check if all mutables are fixed.
+
         Raises:
             RuntimeError: Error if a existing mutable is not fixed.
         """
@@ -49,6 +53,7 @@ class DynamicOP(ABC):
     @staticmethod
     def get_current_choice(mutable: BaseMutable) -> Any:
         """Get current choice of given mutable.
+
         Args:
             mutable (BaseMutable): Given mutable.
         Raises:
@@ -66,6 +71,7 @@ class DynamicOP(ABC):
 
 class ChannelDynamicOP(DynamicOP):
     """Base class for dynamic OP with mutable channels.
+
     Note:
         All subclass should implement ``mutable_in`` and ``mutable_out`` APIs.
     """
@@ -83,6 +89,7 @@ class ChannelDynamicOP(DynamicOP):
     @staticmethod
     def check_mutable_channels(mutable_channels: BaseMutable) -> None:
         """Check if mutable has `currnet_mask` attribute.
+
         Args:
             mutable_channels (BaseMutable): Mutable to be checked.
         Raises:

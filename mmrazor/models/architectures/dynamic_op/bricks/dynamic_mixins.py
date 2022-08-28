@@ -755,7 +755,7 @@ class DynamicMHAMixin(DynamicMixin, DynamicMHAProtocol):
 
     @property
     def mutable_num_heads(self):
-        """Mutable number of heads"""
+        """Mutable number of heads."""
         assert hasattr(self, 'mutable_attrs')
         return self.mutable_attrs['num_heads']
 

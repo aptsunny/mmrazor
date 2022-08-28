@@ -79,6 +79,7 @@ class RelativePosition2D(nn.Module):
 
 class MultiheadAttention(BaseModule):
     """Multi-head Attention Module with iRPE.
+
     This module implements multi-head attention that supports different input
     dims and embed dims. And it also supports a shortcut from ``value``, which
     is useful if input dims is not the same with embed dims.

@@ -34,7 +34,8 @@ class TransformerEncoderLayer(BaseBackbone):
             Defaults to dict(type='GELU').
         norm_cfg (Dict, optional): The config for normalization.
         init_cfg (Dict, optional): The config for initialization.
-            Defaults to None.    """
+            Defaults to None.
+    """
 
     def __init__(self,
                  embed_dims: Union[int, BaseMutable],

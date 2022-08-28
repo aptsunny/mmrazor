@@ -1,5 +1,5 @@
 _base_ = [
-    'mmrazor::_base_/settings/imagenet_bs2048_autoslim.py',
+    'mmrazor::_base_/settings/imagenet_bs2048_AdamW.py',
     'mmcls::_base_/default_runtime.py',
 ]
 
@@ -43,7 +43,7 @@ model = dict(
 
 # learning policy
 max_epochs = 100
-param_scheduler = dict(end=max_epochs)
+# param_scheduler = dict(end=max_epochs)
 
 # train, val, test setting
 train_cfg = dict(max_epochs=max_epochs)

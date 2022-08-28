@@ -18,6 +18,7 @@ class DynamicConv2d(nn.Conv2d, ChannelDynamicOP):
     """Applies a 2D convolution over an input signal composed of several input
     planes according to the `mutable_in_channels` and `mutable_out_channels`
     dynamically.
+
     Args:
         in_channels_cfg (Dict): Config related to `in_channels`.
         out_channels_cfg (Dict): Config related to `out_channels`.
@@ -115,6 +116,7 @@ class DynamicConv2d(nn.Conv2d, ChannelDynamicOP):
 class DynamicLinear(nn.Linear, ChannelDynamicOP):
     """Applies a linear transformation to the incoming data according to the
     `mutable_in_features` and `mutable_out_features` dynamically.
+
     Args:
         in_features_cfg (Dict): Config related to `in_features`.
         out_features_cfg (Dict): Config related to `out_features`.
@@ -163,6 +165,7 @@ class DynamicLinear(nn.Linear, ChannelDynamicOP):
 class DynamicBatchNorm(_BatchNorm, ChannelDynamicOP):
     """Applies Batch Normalization over an input according to the
     `mutable_num_features` dynamically.
+
     Args:
         num_features_cfg (Dict): Config related to `num_features`.
     """
@@ -239,6 +242,7 @@ class DynamicBatchNorm(_BatchNorm, ChannelDynamicOP):
 class DynamicInstanceNorm(_InstanceNorm, ChannelDynamicOP):
     """Applies Instance Normalization over an input according to the
     `mutable_num_features` dynamically.
+
     Args:
         num_features_cfg (Dict): Config related to `num_features`.
     """
@@ -293,6 +297,7 @@ class DynamicInstanceNorm(_InstanceNorm, ChannelDynamicOP):
 class DynamicGroupNorm(GroupNorm, ChannelDynamicOP):
     """Applies Group Normalization over a mini-batch of inputs according to the
     `mutable_num_channels` dynamically.
+
     Args:
         num_channels_cfg (Dict): Config related to `num_channels`.
     """

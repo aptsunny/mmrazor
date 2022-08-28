@@ -1,5 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 """from unittest import TestCase.
+
 import pytest
 import torch
 from mmrazor.models.architectures import DynamicConv2d

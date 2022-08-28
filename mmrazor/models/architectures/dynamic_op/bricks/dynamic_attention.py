@@ -13,7 +13,7 @@ from .utils import MultiheadAttention
 
 
 class DynamicMultiheadAttention(MultiheadAttention, DynamicMHAMixin):
-    """Dynamic Multihead Attention with iRPE"""
+    """Dynamic Multihead Attention with iRPE."""
 
     accepted_mutable_attrs = {
         # 'head_dims', = embed_dims / num_heads

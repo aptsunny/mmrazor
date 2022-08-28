@@ -30,7 +30,7 @@ class DynamicInputResizer(InputResizer, DynamicOP):
         self.mutable_shape = mutable_shape
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward of Dynamic input resizer"""
+        """Forward of Dynamic input resizer."""
         if self.mutable_shape is not None:
             self._size = self.mutable_shape.current_choice
 

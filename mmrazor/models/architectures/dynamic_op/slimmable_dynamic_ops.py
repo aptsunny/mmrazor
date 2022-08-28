@@ -12,6 +12,7 @@ from .base import DynamicOP
 class SwitchableBatchNorm2d(nn.Module, DynamicOP):
     """Employs independent batch normalization for different switches in a
     slimmable network.
+
     To train slimmable networks, ``SwitchableBatchNorm2d`` privatizes all
     batch normalization layers for each switch in a slimmable network.
     Compared with the naive training approach, it solves the problem of feature

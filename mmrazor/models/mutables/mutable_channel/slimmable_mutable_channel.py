@@ -11,6 +11,7 @@ from .mutable_channel import MutableChannel
 class SlimmableMutableChannel(MutableChannel[int, Dict[str, int]]):
     """A type of ``MUTABLES`` to train several subnet together, such as the
     retraining stage in AutoSlim.
+
     Notes:
         We need to set `candidate_choices` after the instantiation of a
         `SlimmableMutableChannel` by ourselves.
