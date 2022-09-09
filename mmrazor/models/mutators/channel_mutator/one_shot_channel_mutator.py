@@ -68,6 +68,9 @@ class OneShotChannelMutator(ChannelMutator):
         for mutables in self.search_groups.values():
             for mutable in mutables:
                 mutable.current_choice = mutable.min_choice
+        # import pdb;pdb.set_trace()
+        # for mutables in self.search_groups.values(): print('\n', mutables)
+
 
     # todo: check search gorups
     def build_search_groups(self, supernet: Module):

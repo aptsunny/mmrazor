@@ -2,6 +2,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Generic, Optional, TypeVar
 
+import torch
 from mmengine.model import BaseModule
 
 CHOICE_TYPE = TypeVar('CHOICE_TYPE')
@@ -39,6 +40,30 @@ class BaseMutable(BaseModule, ABC, Generic[CHOICE_TYPE, CHOSEN_TYPE]):
         self.alias = alias
         self._is_fixed = False
         self._current_choice: Optional[CHOICE_TYPE] = None
+
+    # @abstractmethod
+    # def convert_choice_to_mid_mask(self, choice: CHOICE_TYPE) -> torch.Tensor:
+    #     """Get the mask according to the input choice."""
+    #     pass
+
+
+    # @property
+    # def current_mid_mask(self):
+    #     """The current mask.
+
+    #     We slice the registered parameters and buffers of a ``nn.Module``
+    #     according to the mask of the corresponding channel mutable.
+    #     """
+    #     # if len(self.concat_parent_mutables) > 0:
+    #     #     # If the input of a module is a concatenation of several modules'
+    #     #     # outputs, the in_mask of this module is the concatenation of
+    #     #     # these modules' out_mask.
+    #     #     return torch.cat([
+    #     #         mutable.current_mask for mutable in self.concat_parent_mutables
+    #     #     ])
+    #     # else:
+    #     return self.convert_choice_to_mid_mask(self.current_choice)
+
 
     @property
     def current_choice(self) -> Optional[CHOICE_TYPE]:

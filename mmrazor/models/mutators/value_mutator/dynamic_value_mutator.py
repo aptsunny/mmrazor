@@ -1,7 +1,7 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 from typing import Any, Dict
 
-from mmrazor.models.mutables import OneShotMutableValue
+from mmrazor.models.mutables import OneShotMutableValue, DerivedMutable
 from mmrazor.registry import MODELS
 from .value_mutator import ValueMutator
 
@@ -48,4 +48,7 @@ class DynamicValueMutator(ValueMutator):
         """Set the channel numbers of each layer to minimum."""
         for mutables in self.search_groups.values():
             for mutable in mutables:
+                # if isinstance(mutable, DerivedMutable):
+                #     print(mutable.choices)
                 mutable.current_choice = mutable.min_choice
+        # import pdb;pdb.set_trace()

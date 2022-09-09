@@ -52,6 +52,7 @@ class DynamicLinearClsHead(ClsHead, DynamicHead):
         pre_logits = self.pre_logits(feats)
         # The final classification head.
         cls_score = self.fc(pre_logits)
+        # import pdb;pdb.set_trace() # 已经不一致了
         return cls_score
 
     def connect_with_backbone(self,

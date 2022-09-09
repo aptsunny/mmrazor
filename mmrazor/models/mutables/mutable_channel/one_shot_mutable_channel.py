@@ -130,6 +130,15 @@ class OneShotMutableChannel(MutableChannel[int, Dict]):
         mask[:num_channels] = True
         return mask
 
+    # def convert_choice_to_mid_mask(self, choice: int) -> torch.Tensor:
+    #     """Get the mask according to the input choice."""
+    #     num_channels = choice
+    #     mask = torch.zeros(self.num_channels).bool()
+    #     start_ = (self.num_channels - num_channels) // 2
+    #     mask[start_:-start_] = True
+    #     # mask[:num_channels] = True
+    #     return mask
+
     def dump_chosen(self) -> Dict:
         assert self.current_choice is not None
 
@@ -176,6 +185,7 @@ class OneShotMutableChannel(MutableChannel[int, Dict]):
                              mutable2: OneShotMutableValue) -> Callable:
 
             def fn():
+                # import pdb;pdb.set_trace()
                 return mutable1.current_choice * mutable2.current_choice
 
             return fn

@@ -34,9 +34,11 @@ class SearchableImageClassifier(ImageClassifier):
             input_resizer = None
         self.input_resizer = input_resizer
 
-    def extract_feat(self, batch_inputs: Tensor, stage='neck') -> Tensor:
-        if self.input_resizer is not None:
+    def extract_feat(self, batch_inputs: Tensor, stage='neck', input_resizer=True) -> Tensor:
+        # if self.input_resizer is not None:
+        if self.input_resizer is not None and input_resizer: 
             batch_inputs = self.input_resizer(batch_inputs)
+
 
         return super().extract_feat(batch_inputs, stage)
 
@@ -57,3 +59,11 @@ class SearchableImageClassifier(ImageClassifier):
         input_resizer.register_mutable_attr('shape', mutable_shape)
 
         return input_resizer
+
+    def simple_test(self, img, img_metas=None, **kwargs):
+        """Test without augmentation."""
+        x = self.extract_feat(img, input_resizer=False)
+        # import pdb;pdb.set_trace()
+        res = self.head.simple_test(x, **kwargs)
+
+        return res

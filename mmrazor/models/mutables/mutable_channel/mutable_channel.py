@@ -80,6 +80,28 @@ class MutableChannel(BaseMutable[CHOICE_TYPE, CHOSEN_TYPE],
         else:
             return self.convert_choice_to_mask(self.current_choice)
 
+    # @abstractmethod
+    # def convert_choice_to_mid_mask(self, choice: CHOICE_TYPE) -> torch.Tensor:
+    #     """Get the mask according to the input choice."""
+    #     pass
+
+    # @property
+    # def current_mid_mask(self):
+    #     """The current mask.
+
+    #     We slice the registered parameters and buffers of a ``nn.Module``
+    #     according to the mask of the corresponding channel mutable.
+    #     """
+    #     if len(self.concat_parent_mutables) > 0:
+    #         # If the input of a module is a concatenation of several modules'
+    #         # outputs, the in_mask of this module is the concatenation of
+    #         # these modules' out_mask.
+    #         return torch.cat([
+    #             mutable.current_mask for mutable in self.concat_parent_mutables
+    #         ])
+    #     else:
+    #         return self.convert_choice_to_mid_mask(self.current_choice)
+
     def bind_mutable_name(self, name: str) -> None:
         """Bind a MutableChannel to its name.
 

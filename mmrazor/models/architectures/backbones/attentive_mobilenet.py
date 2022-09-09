@@ -2,7 +2,9 @@
 from collections import OrderedDict
 from typing import List, Optional, Sequence, Tuple
 
+import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from mmcls.models.backbones.base_backbone import BaseBackbone
 from mmcls.models.utils import make_divisible
 from mmcv.cnn import ConvModule
@@ -32,7 +34,9 @@ def _mutate_conv_module(
         mutable_in_channels: Optional[BaseMutable] = None,
         mutable_out_channels: Optional[BaseMutable] = None,
         mutable_kernel_size: Optional[Tuple[BaseMutable,
-                                            Sequence[int]]] = None):
+                                            Sequence[int]]] = None,
+        is_depthwise: bool = False
+    ):
     if mutable_in_channels is not None:
         conv_module.conv.register_mutable_attr('in_channels',
                                                mutable_in_channels)
@@ -45,6 +49,10 @@ def _mutate_conv_module(
     if mutable_kernel_size is not None:
         conv_module.conv.register_mutable_attr('kernel_size',
                                                mutable_kernel_size)
+
+    if is_depthwise:
+        conv_module.conv.register_mutable_attr('groups',
+                                               mutable_in_channels)
 
 
 def _mutate_se_layer(se_layer: GMLSELayer, mutable_in_channels: BaseMutable,
@@ -68,8 +76,11 @@ def _mutate_mb_layer(mb_layer: GMLMBBlock, mutable_in_channels,
                      mutable_out_channels, mutable_expand_value,
                      mutable_kernel_size, se_cfg):
     # mutate in_channels, out_channels, kernel_size for mb_layer
-    derived_expand_channels = mutable_in_channels * mutable_expand_value
+    # derived_expand_channels = mutable_in_channels * mutable_expand_value # minmax ？
+    # derived_expand_channels = mutable_expand_value * mutable_in_channels.derive_same_mutable()
+    derived_expand_channels = mutable_expand_value * mutable_in_channels
 
+    # import pdb;pdb.set_trace()
     if mb_layer.with_expand_conv:
         _mutate_conv_module(
             mb_layer.expand_conv,
@@ -80,7 +91,9 @@ def _mutate_mb_layer(mb_layer: GMLMBBlock, mutable_in_channels,
         mb_layer.depthwise_conv,
         mutable_in_channels=derived_expand_channels,
         mutable_out_channels=derived_expand_channels,
-        mutable_kernel_size=mutable_kernel_size)
+        mutable_kernel_size=mutable_kernel_size,
+        is_depthwise=True
+    )
 
     if mb_layer.with_se:
         _mutate_se_layer(
@@ -111,6 +124,60 @@ class AttentiveMobileNet(BaseBackbone):
     # [min_kernel_size, max_kernel_size, step]
     # stride
     # se_cfg
+    # arch_settings = [
+    #     [[1, 1, 1], [16, 24, 8], [1, 1, 1], [3, 5, 2], 1, False],
+    #     [[4, 4, 1], [24, 24, 8], [3, 5, 1], [3, 5, 2], 2, False],
+    #     [[4, 5, 1], [32, 40, 8], [3, 4, 1], [3, 5, 2], 2, True],
+    #     [[4, 6, 1], [64, 72, 8], [3, 6, 1], [3, 3, 2], 2, False],
+    #     [[4, 5, 1], [112, 128, 8], [3, 6, 1], [3, 5, 2], 1, True],
+    #     [[6, 6, 1], [192, 208, 8], [3, 7, 1], [3, 3, 2], 2, True],
+    #     [[6, 6, 1], [216, 216, 8], [1, 1, 1], [3, 5, 2], 1, True],
+    # ]
+    # without depth / kernelsize / channel
+    # arch_settings = [
+    #     [[1, 1, 1], [16, 16, 8], [1, 1, 1], [3, 3, 2], 1, False],
+    #     [[4, 6, 1], [24, 24, 8], [3, 3, 1], [3, 3, 2], 2, False],
+    #     [[4, 6, 1], [32, 32, 8], [3, 3, 1], [3, 3, 2], 2, True],
+    #     [[4, 6, 1], [64, 64, 8], [3, 3, 1], [3, 3, 2], 2, False],
+    #     [[4, 6, 1], [112, 112, 8], [3, 3, 1], [3, 3, 2], 1, True],
+    #     [[6, 6, 1], [192, 192, 8], [3, 3, 1], [3, 3, 2], 2, True],
+    #     [[6, 6, 1], [216, 216, 8], [1, 1, 1], [3, 3, 2], 1, True],
+    # ]
+    # # without depth
+    # arch_settings = [
+    #     [[1, 1, 1], [16, 24, 8], [1, 1, 1], [3, 5, 2], 1, False],
+    #     [[4, 6, 1], [24, 32, 8], [3, 3, 1], [3, 5, 2], 2, False],
+    #     [[4, 6, 1], [32, 40, 8], [3, 3, 1], [3, 5, 2], 2, True],
+    #     [[4, 6, 1], [64, 72, 8], [3, 3, 1], [3, 5, 2], 2, False],
+    #     [[4, 6, 1], [112, 128, 8], [3, 3, 1], [3, 5, 2], 1, True],
+    #     [[6, 6, 1], [192, 216, 8], [3, 3, 1], [3, 5, 2], 2, True],
+    #     [[6, 6, 1], [216, 224, 8], [1, 1, 1], [3, 5, 2], 1, True],
+    # ]
+
+    # 2.去除24这个特殊的对不齐的通道
+    # arch_settings = [
+    #     [[1, 1, 1], [16, 16, 8], [1, 2, 1], [3, 5, 2], 1, False],
+    #     [[6, 6, 1], [16, 32, 8], [3, 5, 1], [3, 5, 2], 2, False],
+    #     [[6, 6, 1], [32, 40, 8], [3, 6, 1], [3, 5, 2], 2, True],
+    #     [[6, 6, 1], [64, 72, 8], [3, 6, 1], [3, 5, 2], 2, False],
+    #     [[6, 6, 1], [112, 128, 8], [3, 8, 1], [3, 5, 2], 1, True],
+    #     [[6, 6, 1], [192, 216, 8], [3, 8, 1], [3, 5, 2], 2, True],
+    #     [[6, 6, 1], [216, 224, 8], [1, 2, 1], [3, 5, 2], 1, True],
+    # ]
+
+
+    # 1. 通道expandsion改为都是6 debug
+    # arch_settings = [
+    #     [[1, 1, 1], [16, 24, 8], [1, 2, 1], [3, 5, 2], 1, False],
+    #     [[6, 6, 1], [24, 32, 8], [3, 5, 1], [3, 5, 2], 2, False],
+    #     [[6, 6, 1], [32, 40, 8], [3, 6, 1], [3, 5, 2], 2, True],
+    #     [[6, 6, 1], [64, 72, 8], [3, 6, 1], [3, 5, 2], 2, False],
+    #     [[6, 6, 1], [112, 128, 8], [3, 8, 1], [3, 5, 2], 1, True],
+    #     [[6, 6, 1], [192, 216, 8], [3, 8, 1], [3, 5, 2], 2, True],
+    #     [[6, 6, 1], [216, 224, 8], [1, 2, 1], [3, 5, 2], 1, True],
+    # ]
+
+    # g32 training
     arch_settings = [
         [[1, 1, 1], [16, 24, 8], [1, 2, 1], [3, 5, 2], 1, False],
         [[4, 6, 1], [24, 32, 8], [3, 5, 1], [3, 5, 2], 2, False],
@@ -124,6 +191,7 @@ class AttentiveMobileNet(BaseBackbone):
     def __init__(self,
                  first_out_channels_range=[16, 24, 8],
                  last_out_channels_range=[1792, 1984, 1984 - 1792],
+                #  last_out_channels_range=[1600, 1792, 1792 - 1600],
                  last_expand_ratio=6,
                  widen_factor=1.,
                  out_indices=(7, ),
@@ -131,7 +199,7 @@ class AttentiveMobileNet(BaseBackbone):
                  dropout_stages=6,
                  conv_cfg=dict(type='BigNasConv2d'),
                  norm_cfg=dict(type='DynamicBatchNorm2d'),
-                 act_cfg=dict(type='Swish'),
+                 act_cfg=dict(type='MemoryEfficientSwish'),
                  norm_eval=False,
                  zero_init_residual=True,
                  with_cp=False,
@@ -168,7 +236,7 @@ class AttentiveMobileNet(BaseBackbone):
 
         self.first_conv = ConvModule(
             in_channels=3,
-            out_channels=self.in_channels,
+            out_channels=self.in_channels, # 24
             kernel_size=3,
             stride=2,
             padding=1,
@@ -305,7 +373,8 @@ class AttentiveMobileNet(BaseBackbone):
                 with_cp=self.with_cp,
                 se_cfg=se_cfg,
                 with_attentive_shortcut=True)
-
+            # if i == 2:
+            #     import pdb;pdb.set_trace()
             _mutate_mb_layer(mb_layer, self.last_mutable, mutable_out_channels,
                              mutable_expand_value, mutable_kernel_size, se_cfg)
             self.last_mutable = mutable_out_channels
@@ -320,19 +389,35 @@ class AttentiveMobileNet(BaseBackbone):
         return dynamic_seq
 
     def forward(self, x):
-        x = self.first_conv(x)
-
+        # input_ = x
+        # import pdb;pdb.set_trace() # self.first_conv.bn.bias
+        # self.first_conv.conv(x)
+        # self.first_conv.bn(self.first_conv.conv(x))
+        x = self.first_conv(x) # x = self.first_conv.bn(self.first_conv.conv(x))
         outs = []
         for i, layer_name in enumerate(self.layers):
             layer = getattr(self, layer_name)
+            # if i == 1:
             x = layer(x)
+            # print(i, x.shape, x[0, -5:, 0, 0])
+            # import pdb;pdb.set_trace()
             if i in self.out_indices:
+                # if drop_ratio > 0: # 有可能是dropout的问题
+                # x = F.dropout(x, p=0.2) # train的时候有，search的时候应该注释
+
+                # import pdb;pdb.set_trace()
+                x = torch.squeeze(x, dim=-1)
+                x = torch.squeeze(x, dim=-1)
                 outs.append(x)
 
+        # import pdb;pdb.set_trace()
+        # import pdb;pdb.set_trace() 
         return tuple(outs)
 
     def set_dropout(self, drop_prob: float) -> None:
-        total_block_nums = len(self.blocks)
+        # drop_path_ratio is set for last two mobile_layer.
+        # total_block_nums = len(self.blocks)
+        total_block_nums = sum(len(blocks) for blocks in self.blocks[:-1]) + 1
         visited_block_nums = 0
         for idx, layer_name in enumerate(self.blocks, start=1):
             layer = getattr(self, layer_name)
@@ -343,23 +428,15 @@ class AttentiveMobileNet(BaseBackbone):
 
             for mb_idx, mb_layer in enumerate(layer):
                 if isinstance(mb_layer, GMLMBBlock):
-                    ratio = (visited_block_nums - len(layer) +
-                             mb_idx) / total_block_nums
+                    ratio = (visited_block_nums - len(layer) + mb_idx) / total_block_nums
                     mb_drop_prob = drop_prob * ratio
                     mb_layer.drop_prob = mb_drop_prob
 
+                    # print('float({}-{}+{})/{}={}'.format(visited_block_nums, len(layer), mb_idx, total_block_nums, ratio))
+                    # print(idx, mb_idx, drop_prob, ratio, mb_drop_prob)
                     logger.debug(f'set drop prob `{mb_drop_prob}` '
                                  f'to layer: {layer_name}.{mb_idx}')
-
-    def _freeze_stages(self):
-        if self.frozen_stages >= 0:
-            for param in self.first_conv.parameters():
-                param.requires_grad = False
-        for i in range(1, self.frozen_stages + 1):
-            layer = getattr(self, f'layer{i}')
-            layer.eval()
-            for param in layer.parameters():
-                param.requires_grad = False
+        # import pdb;pdb.set_trace()
 
     def train(self, mode=True):
         super().train(mode)
@@ -370,15 +447,32 @@ class AttentiveMobileNet(BaseBackbone):
                     m.eval()
 
     def init_weights(self) -> None:
+        # import pdb;pdb.set_trace()
+
         super().init_weights()
 
         if self.zero_init_residual:
+            # tag = 0
             for name, module in self.named_modules():
                 if isinstance(module, GMLMBBlock):
                     if module.with_res_shortcut or \
                             module.with_attentive_shortcut:
                         norm_layer = module.linear_conv.norm
+                        # tag = tag + 1
+                        # print(tag)
                         constant_init(norm_layer, val=0)
                         logger.debug(
                             f'init {type(norm_layer)} of linear_conv in '
                             f'`{name}` to zero')
+            # import pdb;pdb.set_trace()
+
+    def _freeze_stages(self):
+        if self.frozen_stages >= 0:
+            for param in self.first_conv.parameters():
+                param.requires_grad = False
+        
+        for i in range(1, self.frozen_stages + 1):
+            layer = getattr(self, f'layer{i}')
+            layer.eval()
+            for param in layer.parameters():
+                param.requires_grad = False

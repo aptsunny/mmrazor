@@ -35,7 +35,6 @@ class AverageMeter:
         self.count += batch_size
         self.avg = self.sum / self.count
 
-
 class CalibrateBNMixin:
     runner: Runner
     fp16: bool
@@ -75,10 +74,11 @@ class CalibrateBNMixin:
         self.runner.logger.info(
             f'total sample numbers for calibration: {calibrated_sample_nums}')
         remaining = calibrated_sample_nums
-        for data_batch in dataloader:
+
+        for i, data_batch in enumerate(dataloader):
             if len(data_batch) >= remaining:
                 data_batch = data_batch[:remaining]
-            data_batch_nums = len(data_batch)
+            data_batch_nums = len(data_batch['inputs'])
             if dist.is_initialized() and dist.is_available():
                 data_batch_tensor = torch.tensor(
                     [data_batch_nums], device=self.runner.model.device)
@@ -92,6 +92,7 @@ class CalibrateBNMixin:
             with autocast(enabled=self.fp16):
                 self.runner.model.test_step(data_batch)
 
+            print(i, len(data_batch['inputs']))
             if remaining <= 0:
                 break
 

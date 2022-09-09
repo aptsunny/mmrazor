@@ -25,22 +25,35 @@ VALID_DISTILLER_TYPE = Union[ConfigurableDistiller, Dict]
 @MODELS.register_module()
 class BigNAS(BaseAlgorithm):
 
+    strategy_groups = {
+        'single': ['max'],
+        'sandwich2': ['max', 'min'],
+        'sandwich3': ['max', 'random', 'min'],
+        'sandwich4': ['max', 'random', 'random1', 'min'],
+        'batch-sandwich4': [['max', 'random', 'random', 'min']],
+        'batch-sandwich4_distill': [['max'],
+                                    ['max', 'random', 'random', 'min']]
+    }
+
     def __init__(self,
                  mutators: VALID_MUTATORS_TYPE,
                  distiller: VALID_DISTILLER_TYPE,
                  architecture: Union[BaseModel, Dict],
                  data_preprocessor: Optional[Union[Dict, nn.Module]] = None,
+                 strategy: str = 'sandwich4',
                  init_cfg: Optional[Dict] = None,
                  num_samples: int = 2,
                  drop_prob: float = 0.2,
                  subnet_dict: Optional[str] = None) -> None:
         super().__init__(architecture, data_preprocessor, init_cfg)
 
+        self.strategy = strategy
         built_mutators = dict()
         for name, mutator in mutators.items():
             mutator = self._build_mutator(mutator)
             built_mutators[name] = mutator
             # `prepare_from_supernet` must be called before distiller initialized  # noqa: E501
+            # import pdb;pdb.set_trace()
             mutator.prepare_from_supernet(self.architecture)
         self.mutators = built_mutators
 
@@ -98,7 +111,10 @@ class BigNAS(BaseAlgorithm):
     def set_min_subnet(self) -> None:
         for mutator in self.mutators.values():
             mutator.set_min_choices()
-
+            # import pdb;pdb.set_trace() 
+        
+        # self.architecture.backbone.layer2[0].expand_conv.conv.out_channels
+            
     @property
     def search_groups(self) -> Dict:
         search_groups = dict()
@@ -108,8 +124,39 @@ class BigNAS(BaseAlgorithm):
 
         return search_groups
 
+    """
+    # single
+    def train_step(self, data: Union[dict, tuple, list],
+                   optim_wrapper: OptimWrapper) -> Dict[str, torch.Tensor]:
+        # self.set_max_subnet()
+        self.set_min_subnet()
+        # batch_inputs, _, gt_labels,  _ = self.data_preprocessor(data, True).values()
+        batch_inputs = data['inputs']
+        data_samples = 1
+        # Enable automatic mixed precision training context.
+        with optim_wrapper.optim_context(self):
+            # data = self.data_preprocessor(data, True) # print(batch_inputs.shape)
+            # losses = self._run_forward(data, mode='loss')  # type: ignore
+            losses = self(batch_inputs, data_samples, mode='loss') # 输入一样 6.0862
+        # print(len(list(self.named_parameters()))) # 469
+        # 采样逻辑不通 print(list(self.named_parameters())[-1][1].shape)
+        # 采样逻辑不通 print(list(self.named_parameters())[-1][1][5:10])
+        # 采样逻辑不通 print(list(self.named_parameters())[-2][1][5:10])
+        # [i.search_groups for i in self.mutators.values()]
+        parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore
+        optim_wrapper.update_params(parsed_losses)
+        # print(self.optimizer.param_groups[0]['params'][-1].grad)
+        # print(self.optimizer.param_groups[0]['params'][-2].grad)
+        # print(self.optimizer.param_groups[0]['params'][-468].grad)
+        # print(list(self.optimizer.params_groupnamed_parameters())[-1][1].grad)
+        return log_vars
+
+    """
+
     def train_step(self, data: List[dict],
                    optim_wrapper: OptimWrapper) -> Dict[str, torch.Tensor]:
+
+        selectes = self.strategy_groups[self.strategy]
 
         def distill_step(
                 batch_inputs: torch.Tensor, data_samples: List[BaseDataElement]
@@ -118,9 +165,10 @@ class BigNAS(BaseAlgorithm):
             with optim_wrapper.optim_context(
                     self), self.distiller.student_recorders:  # type: ignore
                 hard_loss = self(batch_inputs, data_samples, mode='loss')
+                # import pdb;pdb.set_trace()
                 soft_loss = self.distiller.compute_distill_losses()
 
-                subnet_losses.update(hard_loss)
+                # subnet_losses.update(hard_loss)
                 subnet_losses.update(soft_loss)
 
                 parsed_subnet_losses, _ = self.parse_losses(subnet_losses)
@@ -128,43 +176,69 @@ class BigNAS(BaseAlgorithm):
 
             return subnet_losses
 
-        if not self._optim_wrapper_count_status_reinitialized:
-            reinitialize_optim_wrapper_count_status(
-                model=self,
-                optim_wrapper=optim_wrapper,
-                accumulative_counts=self.num_samples + 2)
-            self._optim_wrapper_count_status_reinitialized = True
+
+        if self.strategy == 'sandwich4':  
+            if not self._optim_wrapper_count_status_reinitialized:
+                reinitialize_optim_wrapper_count_status(
+                    model=self,
+                    optim_wrapper=optim_wrapper,
+                    accumulative_counts=self.num_samples + 2)
+                self._optim_wrapper_count_status_reinitialized = True
 
         batch_inputs, data_samples = self.data_preprocessor(data,
                                                             True).values()
+        # batch_inputs, _, gt_labels,  _ = self.data_preprocessor(data, True).values()
+        # data_samples = 1
+        # batch_inputs = data['inputs']
+        # data_samples = 64
 
         total_losses = dict()
-        self.set_max_subnet()
-        # TODO
-        # simplify
-        self.architecture.backbone.set_dropout(self.drop_prob)
-        with optim_wrapper.optim_context(
-                self), self.distiller.teacher_recorders:  # type: ignore
-            max_subnet_losses = self(batch_inputs, data_samples, mode='loss')
-            parsed_max_subnet_losses, _ = self.parse_losses(max_subnet_losses)
-            optim_wrapper.update_params(parsed_max_subnet_losses)
-        total_losses.update(add_prefix(max_subnet_losses, 'max_subnet'))
+        for kind in selectes:
+            if kind in ('max'):
+                # import pdb;pdb.set_trace()
+                self.set_max_subnet()
+                # TODO
+                # simplify
+                self.architecture.backbone.set_dropout(self.drop_prob)
+                with optim_wrapper.optim_context(
+                        self), self.distiller.teacher_recorders:  # type: ignore
+                    max_subnet_losses = self(batch_inputs, data_samples, mode='loss')
+                    parsed_max_subnet_losses, _ = self.parse_losses(max_subnet_losses)
+                    optim_wrapper.update_params(parsed_max_subnet_losses)
+                total_losses.update(add_prefix(max_subnet_losses, 'max_subnet'))
+                # list(runner.model.named_parameters())[-1][1].grad)
+                # print(len(list(self.architecture.named_parameters())))
+                # print(list(self.named_parameters())[0][1].grad)
+                # print(list(self.named_parameters())[1][1].grad)
+                # print(list(self.named_parameters())[2][1].grad)
 
-        self.set_min_subnet()
-        # TODO
-        self.architecture.backbone.set_dropout(0.)
-        min_subnet_losses = distill_step(batch_inputs, data_samples)
-        total_losses.update(add_prefix(min_subnet_losses, 'min_subnet'))
+            elif kind in ('min'):
+                self.set_min_subnet()
+                # import pdb;pdb.set_trace() 
+                # print(list(self.architecture.backbone.modules())[0])
+                # print(self.architecture.backbone.layer2[0].expand_conv.conv)
+                # TODO
+                self.architecture.backbone.set_dropout(0.)
+                min_subnet_losses = distill_step(batch_inputs, data_samples)
+                total_losses.update(add_prefix(min_subnet_losses, 'min_subnet'))
 
-        for sample_idx in range(self.num_samples):
-            self.set_subnet(self.sample_subnet())
-            random_subnet_losses = distill_step(batch_inputs, data_samples)
-            total_losses.update(
-                add_prefix(random_subnet_losses,
-                           f'random_subnet_{sample_idx}'))
+
+            elif kind in ('random', 'random1'):
+                # for sample_idx in range(self.num_samples):
+                if kind == 'random':
+                    sample_idx = 0
+                elif kind == 'random1':
+                    sample_idx = 1
+                self.set_subnet(self.sample_subnet())
+                
+                random_subnet_losses = distill_step(batch_inputs, data_samples)
+                total_losses.update(
+                    add_prefix(random_subnet_losses,
+                            f'random_subnet_{sample_idx}'))
+            
 
         return total_losses
-
+        
 
 @MODEL_WRAPPERS.register_module()
 class BigNASDDP(MMDistributedDataParallel):
@@ -189,9 +263,10 @@ class BigNASDDP(MMDistributedDataParallel):
                     self
             ), self.module.distiller.student_recorders:  # type: ignore
                 hard_loss = self(batch_inputs, data_samples, mode='loss')
+                # import pdb;pdb.set_trace()
                 soft_loss = self.module.distiller.compute_distill_losses()
 
-                subnet_losses.update(hard_loss)
+                # subnet_losses.update(hard_loss)
                 subnet_losses.update(soft_loss)
 
                 parsed_subnet_losses, _ = self.module.parse_losses(
@@ -200,16 +275,19 @@ class BigNASDDP(MMDistributedDataParallel):
 
             return subnet_losses
 
+        # import pdb;pdb.set_trace()
         if not self._optim_wrapper_count_status_reinitialized:
             reinitialize_optim_wrapper_count_status(
                 model=self,
                 optim_wrapper=optim_wrapper,
                 accumulative_counts=self.module.num_samples + 2)
+                # accumulative_counts=self.module.num_samples)
             self._optim_wrapper_count_status_reinitialized = True
 
         batch_inputs, data_samples = self.module.data_preprocessor(
             data, True).values()
 
+        # import pdb;pdb.set_trace()
         total_losses = dict()
         self.module.set_max_subnet()
         # TODO
@@ -236,6 +314,7 @@ class BigNASDDP(MMDistributedDataParallel):
                            f'random_subnet_{sample_idx}'))
 
         return total_losses
+
 
     @property
     def _optim_wrapper_count_status_reinitialized(self) -> bool:

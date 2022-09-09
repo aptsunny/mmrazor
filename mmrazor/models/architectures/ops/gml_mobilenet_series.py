@@ -240,16 +240,40 @@ class GMLMBBlock(BaseOP):
 
         def _inner_forward(x):
             out = x
-
+            
+            # x torch.Size([1, 16, 112, 112])
             if self.with_expand_conv:
                 out = self.expand_conv(out)
+            # out = self.depthwise_conv.conv(out) # 为什么不同 self.depthwise_conv.conv.weight.shape  torch.Size([24, 1, 5, 5])
+            # self.depthwise_conv.conv.groups
+            # self.depthwise_conv.conv.bias print(self.depthwise_conv.conv.bias)
+            # out = self.depthwise_conv.bn(out) # self.depthwise_conv.bn.weight.shape
+            # out = self.depthwise_conv.activate(out)
+            # if out.shape[-1] == 112:
+            #     import pdb;pdb.set_trace()
 
+            # inputs = torch.randn(batchsize, 3, 224, 224)
+            # gt_label=torch.randint(1000, (1,))
+            # import torch;torch.save(x, '/mnt/lustre/sunyue1/autolink/workspace-547/0802_mmrazor/.base/data/x_input.pkl')
+            # torch.save(x, '/mnt/lustre/sunyue1/autolink/workspace-547/0802_mmrazor/.base/data/x_expand.pkl')
+            # torch.save(out, '/mnt/lustre/sunyue1/autolink/workspace-547/0802_mmrazor/.base/data/x_depthwise.pkl')
+            # import torch;torch.save(self.depthwise_conv.conv(x), '/mnt/lustre/sunyue1/autolink/workspace-547/0802_mmrazor/.base/data/x_depthwise_conv.pkl')
+            # torch.save(x, '/mnt/lustre/sunyue1/autolink/workspace-547/0802_mmrazor/.base/data/x_linear_conv.pkl')
+            # torch.save(gt_label, '/mnt/lustre/sunyue1/autolink/workspace-547/0802_mmrazor/.base/data/gt_label.pkl')
+
+            # print('expand', x.shape, x[0, -5:, 0, 0])
+            # import pdb;pdb.set_trace()
             out = self.depthwise_conv(out)
+            # import pdb;pdb.set_trace()
+            # print('depthwise_conv', x.shape, x[0, -5:, 0, 0])
+
 
             if self.with_se:
                 out = self.se(out)
 
             out = self.linear_conv(out)
+            # print('linear_conv', x.shape, x[0, -5:, 0, 0])
+            # import pdb;pdb.set_trace()
 
             if self.with_res_shortcut:
                 if self.drop_prob > 0.:
@@ -262,7 +286,10 @@ class GMLMBBlock(BaseOP):
                         x.size(1) == sx.size(1) and \
                         self.shortcut.reduction == 1:
                     out = drop_path(out, self.drop_prob, self.training)
+                # xx = sx + out
+                # print('shortcut', xx.shape, xx[0, -5:, 0, 0])
                 return sx + out
+                # return sx + out
 
             else:
                 return out

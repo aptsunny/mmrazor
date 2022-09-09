@@ -79,10 +79,36 @@ class ValueMutator(BaseMutator[MUTABLE_TYPE]):
             self, supernet: Module) -> Dict[str, MUTABLE_TYPE]:
         """Mapping module name to mutable."""
         name2mutable: Dict[str, MUTABLE_TYPE] = dict()
-        for name, module in supernet.named_modules():
-            if isinstance(module, self.mutable_class_type):
+        for name, module in supernet.named_modules(): # 
+            # if name in ['backbone.layer2.0.expand_conv', 'backbone.layer2.0.expand_conv.conv', 'backbone.layer2.0.expand_conv.conv.mutable_attrs', 'backbone.layer2.0.expand_conv.conv.mutable_attrs.out_channels']:
+            #     import pdb;pdb.set_trace()
+    
+            # 单一匹配策略
+            if isinstance(module, self.mutable_class_type): 
                 name2mutable[name] = module
+            elif hasattr(module, 'source_mutables'):
+                for each_mutables in module.source_mutables:
+                    if isinstance(each_mutables, self.mutable_class_type): 
+                        name2mutable[name] = each_mutables
         return name2mutable
+        
+        # save_key = []
+        # for i in list(supernet.named_modules()): print('\n', i)
+        # for name, module in list(supernet.named_modules()): save_key.append(name)
+        # print(each_key) if 'expand_conv.conv.mutable_attrs' in each_key for each_key in save_key 
+
+        # for i in list(supernet.backbone.layer2.named_modules()): print('\n', i)
+        # 1.expand_conv.conv.mutable_attrs
+        # name2mutable.keys()
+
+        # backbone.layer2.0.expand_conv
+        # backbone.layer2.0.expand_conv.conv
+        # backbone.layer2.0.expand_conv.conv.mutable_attrs
+        # backbone.layer2.0.expand_conv.conv.mutable_attrs.out_channels
+        # backbone.layer2.0.expand_conv.bn
+
+        # for i in name2mutable.keys(): print('\n', i)
+
 
     def _build_alias_names_mapping(self,
                                    supernet: Module) -> Dict[str, List[str]]:
@@ -95,6 +121,14 @@ class ValueMutator(BaseMutator[MUTABLE_TYPE]):
                         alias2mutable_names[module.alias] = [name]
                     else:
                         alias2mutable_names[module.alias].append(name)
+            elif hasattr(module, 'source_mutables'):
+                for each_mutables in module.source_mutables:
+                    if isinstance(each_mutables, self.mutable_class_type): 
+                        if each_mutables.alias is not None:
+                            if each_mutables.alias not in alias2mutable_names:
+                                alias2mutable_names[each_mutables.alias] = [name]
+                            else:
+                                alias2mutable_names[each_mutables.alias].append(name)
 
         return alias2mutable_names
 
@@ -185,6 +219,7 @@ class ValueMutator(BaseMutator[MUTABLE_TYPE]):
             search_groups[current_group_nums] = group_mutables
             current_group_nums += 1
 
+        # import pdb;pdb.set_trace()
         # Construct search_groups based on alias
         for alias, mutable_names in alias2mutable_names.items():
             if alias not in grouped_alias:
@@ -212,6 +247,14 @@ class ValueMutator(BaseMutator[MUTABLE_TYPE]):
                 else:
                     search_groups[current_group_nums] = [module]
                     current_group_nums += 1
+            elif hasattr(module, 'source_mutables'):
+                for each_mutables in module.source_mutables:
+                    if isinstance(each_mutables, self.mutable_class_type): 
+                        if name in grouped_mutable_names:
+                            continue
+                        else:
+                            search_groups[current_group_nums] = [each_mutables]
+                            current_group_nums += 1
 
         grouped_counter = Counter(grouped_mutable_names)
 

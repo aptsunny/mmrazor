@@ -132,13 +132,33 @@ class DerivedMethodMixin:
         return self.derive_expand_mutable(expand_ratio=1)
 
     def derive_expand_mutable(self: MutableProtocol,
-                              expand_ratio: int) -> 'DerivedMutable':
+                              expand_ratio: Union[int, BaseMutable, float]) -> 'DerivedMutable':
+                            #   expand_ratio: int) -> 'DerivedMutable':
         """Derive expand mutable, usually used with `expand_ratio`."""
-        choice_fn = _expand_choice_fn(self, expand_ratio=expand_ratio)
+        # choice_fn = _expand_choice_fn(self, expand_ratio=expand_ratio)
+        from .mutable_value import MutableValue
+
+        # avoid circular import
+
+        if isinstance(expand_ratio, int):
+            choice_fn = _expand_choice_fn(self, expand_ratio=expand_ratio)
+        elif isinstance(expand_ratio, MutableValue):
+            current_ratio: int = expand_ratio.current_choice
+            choice_fn = _expand_choice_fn(self, expand_ratio=current_ratio)
+        else:
+            raise NotImplementedError(
+                f'Not support type of ratio: {type(expand_ratio)}')
 
         mask_fn: Optional[Callable] = None
         if hasattr(self, 'current_mask'):
-            mask_fn = _expand_mask_fn(self, expand_ratio=expand_ratio)
+            # mask_fn = _expand_mask_fn(self, expand_ratio=expand_ratio)
+            if isinstance(expand_ratio, int):
+                mask_fn = _expand_mask_fn(self, expand_ratio=expand_ratio)
+            elif isinstance(expand_ratio, BaseMutable):
+                mask_fn = _expand_mask_fn(self, expand_ratio=current_ratio)
+            else:
+                raise NotImplementedError(
+                    f'Not support type of ratio: {type(expand_ratio)}')
 
         return DerivedMutable(choice_fn=choice_fn, mask_fn=mask_fn)
 
@@ -239,6 +259,15 @@ class DerivedMutable(BaseMutable[CHOICE_TYPE, CHOICE_TYPE],
                 raise ValueError('Expect all mutable to be source mutable, '
                                  f'but {mutable} is not')
         self.source_mutables = source_mutables
+
+    # def convert_choice_to_mid_mask(self, choice: int) -> torch.Tensor:
+    #     """Get the mask according to the input choice."""
+    #     num_channels = choice
+    #     mask = torch.zeros(self.num_channels).bool()
+    #     start_ = (self.num_channels - num_channels) // 2
+    #     mask[start_:-start_] = True
+    #     # mask[:num_channels] = True
+    #     return mask
 
     # TODO
     # has no effect

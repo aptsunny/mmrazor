@@ -3,7 +3,7 @@ default_scope = 'mmcls'
 
 # !dataset config
 # ==========================================================================
-use_mc = True
+use_mc = True # True
 if use_mc:
     file_client_args = dict(
         backend='memcached',
@@ -32,24 +32,305 @@ data_preprocessor = dict(
 bgr_mean = preprocess_cfg['mean'][::-1]
 bgr_std = preprocess_cfg['std'][::-1]
 
+
+extra_params = dict(
+    translate_const=int(224 * 0.45),
+    img_mean=tuple(round(x) for x in data_preprocessor['mean']),
+)
+policies = [
+    [
+        dict(
+            type='EqualizeV2',
+            prob=0.8,
+            magnitude=1,
+            extra_params=extra_params),
+        dict(
+            type='ShearY',
+            prob=0.8,
+            magnitude=4,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='Color', prob=0.4, magnitude=9,
+            extra_params=extra_params),
+        dict(
+            type='EqualizeV2',
+            prob=0.6,
+            magnitude=3,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='Color', prob=0.4, magnitude=1,
+            extra_params=extra_params),
+        dict(
+            type='RotateV2',
+            prob=0.6,
+            magnitude=8,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='SolarizeV2',
+            prob=0.8,
+            magnitude=3,
+            extra_params=extra_params),
+        dict(
+            type='EqualizeV2',
+            prob=0.4,
+            magnitude=7,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='SolarizeV2',
+            prob=0.4,
+            magnitude=2,
+            extra_params=extra_params),
+        dict(
+            type='SolarizeV2',
+            prob=0.6,
+            magnitude=2,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='Color', prob=0.2, magnitude=0,
+            extra_params=extra_params),
+        dict(
+            type='EqualizeV2',
+            prob=0.8,
+            magnitude=8,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='EqualizeV2',
+            prob=0.4,
+            magnitude=8,
+            extra_params=extra_params),
+        dict(
+            type='SolarizeAddV2',
+            prob=0.8,
+            magnitude=3,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='ShearX',
+            prob=0.2,
+            magnitude=9,
+            extra_params=extra_params),
+        dict(
+            type='RotateV2',
+            prob=0.6,
+            magnitude=8,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='Color', prob=0.6, magnitude=1,
+            extra_params=extra_params),
+        dict(
+            type='EqualizeV2',
+            prob=1.0,
+            magnitude=2,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='InvertV2',
+            prob=0.4,
+            magnitude=9,
+            extra_params=extra_params),
+        dict(
+            type='RotateV2',
+            prob=0.6,
+            magnitude=0,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='EqualizeV2',
+            prob=1.0,
+            magnitude=9,
+            extra_params=extra_params),
+        dict(
+            type='ShearY',
+            prob=0.6,
+            magnitude=3,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='Color', prob=0.4, magnitude=7,
+            extra_params=extra_params),
+        dict(
+            type='EqualizeV2',
+            prob=0.6,
+            magnitude=0,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='PosterizeV2',
+            prob=0.4,
+            magnitude=6,
+            extra_params=extra_params),
+        dict(
+            type='AutoContrastV2',
+            prob=0.4,
+            magnitude=7,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='SolarizeV2',
+            prob=0.6,
+            magnitude=8,
+            extra_params=extra_params),
+        dict(
+            type='Color', prob=0.6, magnitude=9,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='SolarizeV2',
+            prob=0.2,
+            magnitude=4,
+            extra_params=extra_params),
+        dict(
+            type='RotateV2',
+            prob=0.8,
+            magnitude=9,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='RotateV2',
+            prob=1.0,
+            magnitude=7,
+            extra_params=extra_params),
+        dict(
+            type='TranslateYRel',
+            prob=0.8,
+            magnitude=9,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='ShearX',
+            prob=0.0,
+            magnitude=0,
+            extra_params=extra_params),
+        dict(
+            type='SolarizeV2',
+            prob=0.8,
+            magnitude=4,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='ShearY',
+            prob=0.8,
+            magnitude=0,
+            extra_params=extra_params),
+        dict(
+            type='Color', prob=0.6, magnitude=4,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='Color', prob=1.0, magnitude=0,
+            extra_params=extra_params),
+        dict(
+            type='RotateV2',
+            prob=0.6,
+            magnitude=2,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='EqualizeV2',
+            prob=0.8,
+            magnitude=4,
+            extra_params=extra_params),
+        dict(
+            type='EqualizeV2',
+            prob=0.0,
+            magnitude=8,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='EqualizeV2',
+            prob=1.0,
+            magnitude=4,
+            extra_params=extra_params),
+        dict(
+            type='AutoContrastV2',
+            prob=0.6,
+            magnitude=2,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='ShearY',
+            prob=0.4,
+            magnitude=7,
+            extra_params=extra_params),
+        dict(
+            type='SolarizeAddV2',
+            prob=0.6,
+            magnitude=7,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='PosterizeV2',
+            prob=0.8,
+            magnitude=2,
+            extra_params=extra_params),
+        dict(
+            type='SolarizeV2',
+            prob=0.6,
+            magnitude=10,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='SolarizeV2',
+            prob=0.6,
+            magnitude=8,
+            extra_params=extra_params),
+        dict(
+            type='EqualizeV2',
+            prob=0.6,
+            magnitude=1,
+            extra_params=extra_params),
+    ],
+    [
+        dict(
+            type='Color', prob=0.8, magnitude=6,
+            extra_params=extra_params),
+        dict(
+            type='RotateV2',
+            prob=0.4,
+            magnitude=5,
+            extra_params=extra_params),
+    ],
+]
+
+
 train_pipeline = [
     dict(type='LoadImageFromFile', file_client_args=file_client_args),
     dict(
         type='RandomResizedCrop',
         scale=224,
-        backend='pillow',
-        interpolation='bicubic'),
+        backend='pillow'),
     dict(type='RandomFlip', prob=0.5, direction='horizontal'),
-    # TODO(shiguang): align with gml.AutoAugmentV2
-    dict(
-        type='RandAugment',
-        policies='timm_increasing',
-        num_policies=2,
-        total_level=10,
-        magnitude_level=7,
-        magnitude_std=0.5,
-        hparams=dict(
-            pad_val=[round(x) for x in bgr_mean], interpolation='bicubic')),
+    dict(type='AutoAugmentV2', policies=policies),
     dict(type='PackClsInputs'),
 ]
 
@@ -60,8 +341,9 @@ test_pipeline = [
         scale=256,
         edge='short',
         backend='pillow',
-        interpolation='bicubic'),
-    dict(type='CenterCrop', crop_size=224),  # , backend='pillow'),
+        interpolation='bilinear'), 
+        
+    dict(type='CenterCrop', crop_size=224),
     dict(type='PackClsInputs')
 ]
 
@@ -79,8 +361,8 @@ train_dataloader = dict(
 )
 
 val_dataloader = dict(
-    batch_size=64,
-    num_workers=16,
+    batch_size=256,
+    num_workers=4,
     dataset=dict(
         type=dataset_type,
         data_root='data/imagenet',
@@ -94,6 +376,21 @@ val_evaluator = dict(type='Accuracy', topk=(1, 5))
 
 # If you want standard test, please manually configure the test dataset
 test_dataloader = val_dataloader
+
+# test_dataloader for nas
+train_dataloader = dict(
+    batch_size=64,
+    num_workers=4,
+    dataset=dict(
+        type=dataset_type,
+        data_root='data/imagenet',
+        ann_file='/mnt/lustre/share_data/wangshiguang/train_4k.txt',
+        data_prefix='train',
+        pipeline=train_pipeline),
+    sampler=dict(type='DefaultSampler', shuffle=True),
+    persistent_workers=True,
+)
+
 test_evaluator = val_evaluator
 # ==========================================================================
 
@@ -106,8 +403,8 @@ supernet = dict(
         last_out_channels_range=[1792, 1984, 1984 - 1792],
         dropout_stages=6,
         norm_cfg=dict(type='DynamicBatchNorm2d', momentum=0.0),
-        act_cfg=dict(type='Swish')),
-    neck=dict(type='mmcls.GlobalAveragePooling'),
+        # act_cfg=dict(type='Swish')),
+        act_cfg=dict(type='MemoryEfficientSwish')),
     head=dict(
         type='DynamicLinearClsHead',
         num_classes=1000,
@@ -124,7 +421,8 @@ supernet = dict(
         mutable_shape=dict(
             type='OneShotMutableValue',
             value_list=[[192, 192], [224, 224], [256, 256], [288, 288]],
-            default_value=[224, 224])))
+            default_value=[224, 224]))
+)
 
 # !autoslim algorithm config
 num_samples = 2
@@ -161,30 +459,28 @@ model_wrapper_cfg = dict(
 # ==========================================================================
 # ! grad clip by value is not supported!
 optim_wrapper = dict(
-    optimizer=dict(type='SGD', lr=0.8, momentum=0.9, weight_decay=0.00001),
-    paramwise_cfg=dict(bias_decay_mult=0., norm_decay_mult=0.),
+    optimizer=dict(type='SGD', lr=0.8, momentum=0.9, weight_decay=0.00001, nesterov=True),
+    clip_grad=dict(clip_value=1.0), # /mnt/lustre/sunyue1/autolink/workspace-547/0802_mmrazor/.base/mmengine/mmengine/optim/optimizer/optimizer_wrapper.py
+    paramwise_cfg=dict(bias_decay_mult=0., norm_decay_mult=0.), # 
     accumulative_counts=num_samples + 2)
+    # accumulative_counts=num_samples) # num_samples + 2
 
 # learning policy
 max_epochs = 360
 warmup_epochs = 5
 param_scheduler = [
-    # warm up learning rate scheduler
     dict(
         type='LinearLR',
-        start_factor=0.0001,
-        by_epoch=True,
+        start_factor=0.001, # 0.0001
+        by_epoch=False,
         begin=0,
-        end=warmup_epochs,
-        # update by iter
-        convert_to_iter_based=True),
-    # main learning rate scheduler
+        end=3125), # warmup 5 epochs. g32->3125
     dict(
         type='CosineAnnealingLR',
-        T_max=max_epochs - warmup_epochs,
+        T_max=max_epochs,
         eta_min=0,
         by_epoch=True,
-        begin=warmup_epochs,
+        begin=0,
         end=max_epochs,
         convert_to_iter_based=True)
 ]
@@ -194,7 +490,6 @@ train_cfg = dict(by_epoch=True, max_epochs=max_epochs, val_interval=1)
 val_cfg = dict(type='mmrazor.AutoSlimValLoop', calibrated_sample_nums=4096)
 test_cfg = dict(type='mmrazor.AutoSlimTestLoop', calibrated_sample_nums=4096)
 
-# !runtime config
 # ==========================================================================
 # configure default hooks
 default_hooks = dict(
@@ -209,7 +504,7 @@ default_hooks = dict(
 
     # save checkpoint per epoch.
     checkpoint=dict(
-        type='CheckpointHook', interval=1, max_keep_ckpts=10,
+        type='CheckpointHook', interval=1, max_keep_ckpts=1,
         save_best='auto'),
 
     # set sampler seed in distributed evrionment.
@@ -231,13 +526,10 @@ env_cfg = dict(
 
 # set visualizer
 vis_backends = [dict(type='LocalVisBackend')]
+
 visualizer = dict(type='ClsVisualizer', vis_backends=vis_backends)
 
-# load from which checkpoint
-load_from = None
+load_from = '/mnt/lustre/sunyue1/autolink/workspace-547/0802_mmrazor/work_dirs/1107_train_8/epoch_360.pth'
 
 # whether to resume training from the loaded checkpoint
 resume = False
-
-# set log level
-log_level = 'DEBUG'
