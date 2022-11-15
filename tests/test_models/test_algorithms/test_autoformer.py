@@ -64,9 +64,51 @@ ALGORITHM_CFG = dict(
         value_mutator=dict(type='mmrazor.DynamicValueMutator')))
 
 
+BIGNAS_CFG = dict(
+    _scope_='mmrazor',
+    type='SearchableImageClassifier',
+    backbone=dict(
+        type='AttentiveMobileNet',
+        first_out_channels_range=[16, 24, 8],
+        last_out_channels_range=[1792, 1984, 1984 - 1792],
+        dropout_stages=6,
+        norm_cfg=dict(type='DynamicBatchNorm2d', momentum=0.0),
+        act_cfg=dict(type='MemoryEfficientSwish')),
+    neck=None,
+    head=dict(
+        type='DynamicLinearClsHead',
+        num_classes=1000,
+        in_channels=1984,
+        loss=dict(
+            type='mmcls.LabelSmoothLoss',
+            num_classes=1000,
+            label_smooth_val=0.1,
+            mode='original',
+            loss_weight=1.0),
+        topk=(1, 5)),
+    # connect_head=dict(connect_with_backbone='backbone.last_mutable'),
+)
+
+BIGNAS_ALGORITHM_CFG = dict(
+    type='mmrazor.Autoformer',
+    architecture=BIGNAS_CFG,
+    fix_subnet=None,
+    mutators=dict(
+        channel_mutator=dict(
+            type='mmrazor.OneShotChannelMutator',
+            channel_unit_cfg={
+                'type': 'OneShotMutableChannelUnit',
+                'default_args': {
+                    'unit_predefined': True
+                }
+            },
+            parse_cfg={'type': 'Predefined'}),
+        value_mutator=dict(type='mmrazor.DynamicValueMutator')))
+
 class TestAUTOFORMER(TestCase):
 
     def test_init(self):
+        """
         ALGORITHM_CFG_SUPERNET = copy.deepcopy(ALGORITHM_CFG)
         # initiate autoformer with built `algorithm`.
         autoformer_algo = MODELS.build(ALGORITHM_CFG_SUPERNET)
@@ -107,6 +149,16 @@ class TestAUTOFORMER(TestCase):
         with self.assertRaisesRegex(AssertionError,
                                     'autoformer only support predefined.'):
             _ = Autoformer(**ALGORITHM_CFG_SUPERNET)
+        """
+
+
+        # test bignas
+        BIGNAS_ALGORITHM_CFG_SUPERNET = copy.deepcopy(BIGNAS_ALGORITHM_CFG)
+        # initiate autoformer with built `algorithm`.
+        autoformer_algo = MODELS.build(BIGNAS_ALGORITHM_CFG_SUPERNET)
+        # self.assertIsInstance(autoformer_algo, Autoformer)
+        print(autoformer_algo)
+
 
     def test_loss(self):
         # supernet
