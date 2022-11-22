@@ -12,7 +12,7 @@ supernet = dict(
         arch_setting=_base_.arch_setting,
         dropout_stages=6,
         norm_cfg=dict(type='DynamicBatchNorm2d', momentum=0.0),
-        act_cfg=dict(type='Swish')),
+        act_cfg=dict(type='MemoryEfficientSwish')),
     head=dict(
         type='DynamicLinearClsHead',
         num_classes=1000,

@@ -96,17 +96,15 @@ class AttentiveMobileNet(BaseBackbone):
             len(self.expand_ratio_list) == len(self.num_channels_list)
 
         self.in_channels = max(self.first_out_channels_list)
-        self.first_conv = Sequential(
-            OrderedDict([('conv',
-                          BigNasConv2d(
-                              in_channels=3,
-                              out_channels=self.in_channels,
-                              kernel_size=3,
-                              stride=2,
-                              padding=1)),
-                         ('bn',
-                          DynamicBatchNorm2d(num_features=self.in_channels)),
-                         ('act', build_activation_layer(self.act_cfg))]))
+        self.first_conv = ConvModule(
+            in_channels=3,
+            out_channels=self.in_channels,
+            kernel_size=3,
+            stride=2,
+            padding=1,
+            conv_cfg=self.conv_cfg,
+            norm_cfg=self.norm_cfg,
+            act_cfg=self.act_cfg)
 
         self.last_mutable = OneShotMutableChannel(
             num_channels=self.in_channels,

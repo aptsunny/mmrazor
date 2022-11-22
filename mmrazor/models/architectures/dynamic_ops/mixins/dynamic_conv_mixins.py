@@ -162,7 +162,7 @@ class DynamicConvMixin(DynamicChannelMixin):
 
     def _get_dynamic_params_by_mutable_channels(
             self: _ConvNd, weight: Tensor,
-            bias: Optional[Tensor]) -> Tuple[Tensor, Optional[Tensor]]:
+            bias: Optional[Tensor], group: int) -> Tuple[Tensor, Optional[Tensor]]:
         """Get sliced weight and bias according to ``mutable_in_channels`` and
         ``mutable_out_channels``.
 
@@ -306,7 +306,7 @@ class BigNasConvMixin(DynamicConvMixin):
         self.mutable_attrs['kernel_size'] = mutable_kernel_size
 
     def get_dynamic_params(
-            self: _ConvNd) -> Tuple[Tensor, Optional[Tensor], Tuple[int]]:
+            self: _ConvNd, group: int) -> Tuple[Tensor, Optional[Tensor], Tuple[int]]:
         """Get dynamic parameters that will be used in forward process.
 
         Returns:
@@ -320,7 +320,7 @@ class BigNasConvMixin(DynamicConvMixin):
         # 2. slice in/out channel of weight according to mutable in_channels
         # and mutable out channels.
         weight, bias = self._get_dynamic_params_by_mutable_channels(
-            weight, self.bias)
+            weight, self.bias, group)
         return weight, bias, padding
 
     def _get_dynamic_params_by_mutable_kernel_size(
@@ -347,7 +347,7 @@ class BigNasConvMixin(DynamicConvMixin):
         start_offset, end_offset = _get_current_kernel_pos(
             source_kernel_size=self.kernel_size[0],
             target_kernel_size=current_kernel_size)
-        if is_depthwise:
+        if self.groups == self.in_channels == self.out_channels:
             start_offset, end_offset = 0, 5
             current_padding = (2, 2)
         current_weight = \
@@ -360,7 +360,7 @@ class BigNasConvMixin(DynamicConvMixin):
         groups = self.groups
         if self.groups == self.in_channels == self.out_channels:
             groups = x.size(1)
-        weight, bias, padding = self.get_dynamic_params()
+        weight, bias, padding = self.get_dynamic_params(groups)
 
         return self.conv_func(x, weight, bias, self.stride, padding,
                               self.dilation, groups)

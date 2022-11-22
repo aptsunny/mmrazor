@@ -193,6 +193,7 @@ class GMLMBBlock(BaseOP):
         self.with_se = se_cfg is not None
         self.mid_channels = self.in_channels * expand_ratio
         self.with_expand_conv = (self.mid_channels != self.in_channels)
+        self.derived_expand_channels = None
 
         if self.with_se:
             assert isinstance(se_cfg, dict)
