@@ -72,6 +72,7 @@ class SearchableShuffleNetV2(BaseBackbone):
 
     def __init__(self,
                  arch_setting: List[List],
+                 deepen_factor: float = 1.0,
                  stem_multiplier: int = 1,
                  widen_factor: float = 1.0,
                  out_indices: Sequence[int] = (4, ),
@@ -96,6 +97,7 @@ class SearchableShuffleNetV2(BaseBackbone):
 
         super().__init__(init_cfg)
 
+        self.deepen_factor = deepen_factor
         self.arch_setting = arch_setting
         self.widen_factor = widen_factor
         self.out_indices = out_indices
@@ -212,6 +214,7 @@ class SearchableShuffleNetV2(BaseBackbone):
             if i in self.out_indices:
                 outs.append(x)
 
+        # import pdb;pdb.set_trace()
         return tuple(outs)
 
     def train(self, mode: bool = True) -> None:

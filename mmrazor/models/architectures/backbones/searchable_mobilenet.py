@@ -76,6 +76,7 @@ class SearchableMobileNet(BaseBackbone):
     def __init__(
         self,
         arch_setting: List[List],
+        deepen_factor: float = 1.0,
         first_channels: int = 32,
         last_channels: int = 1280,
         widen_factor: float = 1.,
@@ -102,6 +103,7 @@ class SearchableMobileNet(BaseBackbone):
 
         super().__init__(init_cfg)
 
+        self.deepen_factor = deepen_factor
         self.arch_setting = arch_setting
         self.widen_factor = widen_factor
         self.out_indices = out_indices
@@ -204,7 +206,7 @@ class SearchableMobileNet(BaseBackbone):
             x = layer(x)
             if i in self.out_indices:
                 outs.append(x)
-
+        # import pdb;pdb.set_trace()
         return tuple(outs)
 
     def _freeze_stages(self) -> None:
