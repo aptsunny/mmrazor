@@ -17,9 +17,10 @@ except ImportError:
     from mmrazor.utils import get_placeholder
     BaseBackbone = get_placeholder('mmcls')
 
+from .searchable_mixin import SearchableBackboneMixin
 
 @MODELS.register_module()
-class SearchableShuffleNetV2(BaseBackbone):
+class SearchableShuffleNetV2(BaseBackbone, SearchableBackboneMixin):
     """Based on ShuffleNetV2 backbone.
 
     Args:
@@ -73,6 +74,7 @@ class SearchableShuffleNetV2(BaseBackbone):
     def __init__(self,
                  arch_setting: List[List],
                  stem_multiplier: int = 1,
+                 deepen_factor: float = 1.0,
                  widen_factor: float = 1.0,
                  out_indices: Sequence[int] = (4, ),
                  frozen_stages: int = -1,
@@ -82,6 +84,7 @@ class SearchableShuffleNetV2(BaseBackbone):
                  act_cfg: Dict = dict(type='ReLU'),
                  norm_eval: bool = False,
                  with_cp: bool = False,
+                 fix_subnet: bool = False,
                  init_cfg: Optional[Union[Dict, List[Dict]]] = None) -> None:
         layers_nums = 5 if with_last_layer else 4
         for index in out_indices:
@@ -96,6 +99,7 @@ class SearchableShuffleNetV2(BaseBackbone):
 
         super().__init__(init_cfg)
 
+        self.deepen_factor = deepen_factor
         self.arch_setting = arch_setting
         self.widen_factor = widen_factor
         self.out_indices = out_indices
@@ -133,6 +137,9 @@ class SearchableShuffleNetV2(BaseBackbone):
                     conv_cfg=conv_cfg,
                     norm_cfg=norm_cfg,
                     act_cfg=act_cfg))
+        
+        self.load_backbone(fix_subnet)
+
 
     def _make_layer(self, out_channels: int, num_blocks: int,
                     mutable_cfg: Dict) -> Sequential:
