@@ -17,6 +17,8 @@ except ImportError:
     from mmrazor.utils import get_placeholder
     BaseBackbone = get_placeholder('mmcls')
 
+from mmrazor.models.architectures.dynamic_ops.bricks import DynamicSequential
+from mmrazor.models.mutables import OneShotMutableValue
 
 @MODELS.register_module()
 class SearchableShuffleNetV2(BaseBackbone):
@@ -122,6 +124,11 @@ class SearchableShuffleNetV2(BaseBackbone):
             out_channels = round(channel * widen_factor)
             layer = self._make_layer(out_channels, num_blocks,
                                      copy.deepcopy(mutable_cfg))
+
+            mutable_depth = OneShotMutableValue(
+                alias='depth', value_list=[1, 2, 3, 4])
+            layer.register_mutable_attr('depth', mutable_depth)
+
             self.layers.append(layer)
 
         if with_last_layer:
@@ -163,7 +170,8 @@ class SearchableShuffleNetV2(BaseBackbone):
             layers.append(MODELS.build(mutable_cfg))
             self.in_channels = out_channels
 
-        return Sequential(*layers)
+        # return Sequential(*layers)
+        return DynamicSequential(*layers)
 
     def _freeze_stages(self) -> None:
         """Freeze params not to update in the specified stages."""
@@ -197,6 +205,22 @@ class SearchableShuffleNetV2(BaseBackbone):
                 if isinstance(m, _BatchNorm):
                     if m.running_mean is not None:
                         nn.init.constant_(m.running_mean, 0)
+
+    def forward_pre_GAP(self, x: Tensor) -> Tuple[Tensor, ...]:
+        """Forward computation.
+
+        Args:
+            x (tensor): x contains input data for forward computation.
+        """
+        x = self.conv1(x)
+
+        outs = []
+        for i, layer in enumerate(self.layers):
+            x = layer(x)
+            if i in self.out_indices:
+                outs.append(x)
+
+        return x
 
     def forward(self, x: Tensor) -> Tuple[Tensor, ...]:
         """Forward computation.
