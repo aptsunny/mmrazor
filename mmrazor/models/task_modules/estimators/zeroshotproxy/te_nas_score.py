@@ -1,17 +1,21 @@
-'''
-https://github.com/VITA-Group/TENAS
-'''
+# Copyright (c) OpenMMLab. All rights reserved.
+"""https://github.com/VITA-Group/TENAS."""
 
 # import os, sys
 # sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import argparse
+import time
+
 import torch
 from torch import nn
-import argparse, time
+
 # import global_utils, argparse, time
 
+
 class LinearRegionCount(object):
-    """Computes and stores the average and current value"""
+    """Computes and stores the average and current value."""
+
     def __init__(self, n_samples, gpu=None):
         self.ActPattern = {}
         self.n_LR = -1
@@ -19,7 +23,6 @@ class LinearRegionCount(object):
         self.ptr = 0
         self.activations = None
         self.gpu = gpu
-
 
     @torch.no_grad()
     def update2D(self, activations):
@@ -30,12 +33,14 @@ class LinearRegionCount(object):
             self.activations = torch.zeros(self.n_samples, n_neuron)
             if self.gpu is not None:
                 self.activations = self.activations.cuda(self.gpu)
-        self.activations[self.ptr:self.ptr+n_batch] = torch.sign(activations)  # after ReLU
+        self.activations[self.ptr:self.ptr + n_batch] = torch.sign(
+            activations)  # after ReLU
         self.ptr += n_batch
 
     @torch.no_grad()
     def calc_LR(self):
-        res = torch.matmul(self.activations.half(), (1-self.activations).T.half())
+        res = torch.matmul(self.activations.half(),
+                           (1 - self.activations).T.half())
         res += res.T
         res = 1 - torch.sign(res)
         res = res.sum(1)
@@ -64,9 +69,17 @@ class LinearRegionCount(object):
             self.calc_LR()
         return self.n_LR
 
+
 class Linear_Region_Collector:
-    def __init__(self, models=[], input_size=(64, 3, 32, 32), gpu=None,
-                 sample_batch=1, dataset=None, data_path=None, seed=0):
+
+    def __init__(self,
+                 models=[],
+                 input_size=(64, 3, 32, 32),
+                 gpu=None,
+                 sample_batch=1,
+                 dataset=None,
+                 data_path=None,
+                 seed=0):
         self.models = []
         self.input_size = input_size  # BCHW
         self.sample_batch = sample_batch
@@ -76,20 +89,28 @@ class Linear_Region_Collector:
         self.data_path = data_path
         self.seed = seed
         self.gpu = gpu
-        self.device = torch.device('cuda:{}'.format(self.gpu)) if self.gpu is not None else torch.device('cpu')
+        self.device = torch.device('cuda:{}'.format(
+            self.gpu)) if self.gpu is not None else torch.device('cpu')
         # print('Using device:{}'.format(self.device))
 
         self.reinit(models, input_size, sample_batch, seed)
 
-
-    def reinit(self, models=None, input_size=None, sample_batch=None, seed=None):
+    def reinit(self,
+               models=None,
+               input_size=None,
+               sample_batch=None,
+               seed=None):
         if models is not None:
             assert isinstance(models, list)
             del self.models
             self.models = models
             for model in self.models:
                 self.register_hook(model)
-            self.LRCounts = [LinearRegionCount(self.input_size[0]*self.sample_batch, gpu=self.gpu) for _ in range(len(models))]
+            self.LRCounts = [
+                LinearRegionCount(
+                    self.input_size[0] * self.sample_batch, gpu=self.gpu)
+                for _ in range(len(models))
+            ]
         if input_size is not None or sample_batch is not None:
             if input_size is not None:
                 self.input_size = input_size  # BCHW
@@ -111,7 +132,10 @@ class Linear_Region_Collector:
             torch.cuda.empty_cache()
 
     def clear(self):
-        self.LRCounts = [LinearRegionCount(self.input_size[0]*self.sample_batch) for _ in range(len(self.models))]
+        self.LRCounts = [
+            LinearRegionCount(self.input_size[0] * self.sample_batch)
+            for _ in range(len(self.models))
+        ]
         del self.interFeature
         self.interFeature = []
         if self.gpu is not None:
@@ -146,11 +170,16 @@ class Linear_Region_Collector:
             # model.forward(input_data.cuda())
             model.forward(input_data)
             if len(self.interFeature) == 0: return
-            feature_data = torch.cat([f.view(input_data.size(0), -1) for f in self.interFeature], 1)
+            feature_data = torch.cat(
+                [f.view(input_data.size(0), -1) for f in self.interFeature], 1)
             LRCount.update2D(feature_data)
 
 
-def compute_RN_score(model: nn.Module,  batch_size=None, image_size=None, num_batch=None, gpu=None):
+def compute_RN_score(model: nn.Module,
+                     batch_size=None,
+                     image_size=None,
+                     num_batch=None,
+                     gpu=None):
     # # just debug
     # gpu = 0
     # import ModelLoader
@@ -158,13 +187,15 @@ def compute_RN_score(model: nn.Module,  batch_size=None, image_size=None, num_ba
     #
     # if gpu is not None:
     #     model = model.cuda(gpu)
-    lrc_model = Linear_Region_Collector(models=[model], input_size=(batch_size, 3, image_size, image_size),
-                                        gpu=gpu, sample_batch=num_batch)
+    lrc_model = Linear_Region_Collector(
+        models=[model],
+        input_size=(batch_size, 3, image_size, image_size),
+        gpu=gpu,
+        sample_batch=num_batch)
     num_linear_regions = float(lrc_model.forward_batch_sample()[0])
     del lrc_model
     torch.cuda.empty_cache()
     return num_linear_regions
-
 
 
 import numpy as np
@@ -187,8 +218,13 @@ def recal_bn(network, xloader, recalbn, device):
     return network
 
 
-def get_ntk_n(networks, recalbn=0, train_mode=False, num_batch=None,
-              batch_size=None, image_size=None, gpu=None):
+def get_ntk_n(networks,
+              recalbn=0,
+              train_mode=False,
+              num_batch=None,
+              batch_size=None,
+              image_size=None,
+              gpu=None):
     if gpu is not None:
         device = torch.device('cuda:{}'.format(gpu))
     else:
@@ -210,7 +246,8 @@ def get_ntk_n(networks, recalbn=0, train_mode=False, num_batch=None,
     # for i, (inputs, targets) in enumerate(xloader):
     #     if num_batch > 0 and i >= num_batch: break
     for i in range(num_batch):
-        inputs = torch.randn((batch_size, 3, image_size, image_size), device=device)
+        inputs = torch.randn((batch_size, 3, image_size, image_size),
+                             device=device)
         # inputs = inputs.cuda(device=device, non_blocking=True)
         for net_idx, network in enumerate(networks):
             network.zero_grad()
@@ -223,7 +260,8 @@ def get_ntk_n(networks, recalbn=0, train_mode=False, num_batch=None,
             if isinstance(logit, tuple):
                 logit = logit[1]  # 201 networks: return features and logits
             for _idx in range(len(inputs_)):
-                logit[_idx:_idx+1].backward(torch.ones_like(logit[_idx:_idx+1]), retain_graph=True)
+                logit[_idx:_idx + 1].backward(
+                    torch.ones_like(logit[_idx:_idx + 1]), retain_graph=True)
                 grad = []
                 for name, W in network.named_parameters():
                     if 'weight' in name and W.grad is not None:
@@ -240,45 +278,66 @@ def get_ntk_n(networks, recalbn=0, train_mode=False, num_batch=None,
     for ntk in ntks:
         eigenvalues, _ = torch.symeig(ntk)  # ascending
         # conds.append(np.nan_to_num((eigenvalues[-1] / eigenvalues[0]).item(), copy=True, nan=100000.0))
-        conds.append(np.nan_to_num((eigenvalues[-1] / eigenvalues[0]).item(), copy=True))
+        conds.append(
+            np.nan_to_num(
+                (eigenvalues[-1] / eigenvalues[0]).item(), copy=True))
     return conds
 
 
-
 def compute_NTK_score(model, batch_size, gpu, resolution):
-    ntk_score = get_ntk_n([model], recalbn=0, train_mode=True, num_batch=1,
-                           batch_size=batch_size, image_size=resolution, gpu=gpu)[0]
+    ntk_score = get_ntk_n([model],
+                          recalbn=0,
+                          train_mode=True,
+                          num_batch=1,
+                          batch_size=batch_size,
+                          image_size=resolution,
+                          gpu=gpu)[0]
     return -1 * ntk_score
-
 
 
 def parse_cmd_options(argv):
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batch_size', type=int, default=16, help='number of instances in one mini-batch.')
-    parser.add_argument('--input_image_size', type=int, default=None,
-                        help='resolution of input image, usually 32 for CIFAR and 224 for ImageNet.')
+    parser.add_argument(
+        '--batch_size',
+        type=int,
+        default=16,
+        help='number of instances in one mini-batch.')
+    parser.add_argument(
+        '--input_image_size',
+        type=int,
+        default=None,
+        help=
+        'resolution of input image, usually 32 for CIFAR and 224 for ImageNet.'
+    )
     parser.add_argument('--repeat_times', type=int, default=32)
     parser.add_argument('--gpu', type=int, default=None)
     module_opt, _ = parser.parse_known_args(argv)
     return module_opt
 
-if __name__ == "__main__":
-    import ModelLoader
-    opt = global_utils.parse_cmd_options(sys.argv)
-    args = parse_cmd_options(sys.argv)
-    the_model = ModelLoader.get_model(opt, sys.argv)
-    if args.gpu is not None:
-        the_model = the_model.cuda(args.gpu)
 
+# if __name__ == '__main__':
+#     import ModelLoader
+#     opt = global_utils.parse_cmd_options(sys.argv)
+#     args = parse_cmd_options(sys.argv)
+#     the_model = ModelLoader.get_model(opt, sys.argv)
+#     if args.gpu is not None:
+#         the_model = the_model.cuda(args.gpu)
 
-    start_timer = time.time()
+#     start_timer = time.time()
 
-    for repeat_count in range(args.repeat_times):
-        ntk = compute_NTK_score(gpu=args.gpu, model=the_model,
-                             resolution=args.input_image_size, batch_size=args.batch_size)
-        RN = compute_RN_score(model=the_model, batch_size=args.batch_size, image_size=args.input_image_size,
-                              num_batch=1, gpu=args.gpu)
-        the_score = RN + ntk
-    time_cost = (time.time() - start_timer) / args.repeat_times
+#     for repeat_count in range(args.repeat_times):
+#         ntk = compute_NTK_score(
+#             gpu=args.gpu,
+#             model=the_model,
+#             resolution=args.input_image_size,
+#             batch_size=args.batch_size)
+#         RN = compute_RN_score(
+#             model=the_model,
+#             batch_size=args.batch_size,
+#             image_size=args.input_image_size,
+#             num_batch=1,
+#             gpu=args.gpu)
+#         the_score = RN + ntk
+#     time_cost = (time.time() - start_timer) / args.repeat_times
 
-    print(f'ntk={the_score:.4g}, time cost={time_cost:.4g} second(s)')
+#     print(f'ntk={the_score:.4g}, time cost={time_cost:.4g} second(s)')

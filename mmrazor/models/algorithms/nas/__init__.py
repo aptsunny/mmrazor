@@ -4,8 +4,8 @@ from .autoslim import AutoSlim, AutoSlimDDP
 from .bignas import BigNAS, BigNASDDP
 from .darts import Darts, DartsDDP
 from .dsnas import DSNAS, DSNASDDP
-from .spos import SPOS
 from .hybridnas import HYBRIDNAS
+from .spos import SPOS
 
 __all__ = [
     'SPOS', 'AutoSlim', 'AutoSlimDDP', 'BigNAS', 'BigNASDDP', 'Darts',

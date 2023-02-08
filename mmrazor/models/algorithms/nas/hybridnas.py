@@ -7,13 +7,14 @@ from mmengine.structures import BaseDataElement
 from torch import nn
 from torch.nn.modules.batchnorm import _BatchNorm
 
+from mmrazor.models.mutators import NasMutator
 # from mmrazor.models.mutators import OneShotModuleMutator
 from mmrazor.registry import MODELS
 from mmrazor.utils import SingleMutatorRandomSubnet, ValidFixMutable
 from ..base import BaseAlgorithm, LossResults
 
-from mmrazor.models.mutators import NasMutator
 VALID_MUTATOR_TYPE = Union[NasMutator, Dict]
+
 
 @MODELS.register_module()
 class HYBRIDNAS(BaseAlgorithm):
@@ -105,8 +106,8 @@ class HYBRIDNAS(BaseAlgorithm):
             # the supernet.
             # self.mutator.prepare_from_supernet(self.architecture)
             self.is_supernet = True
-        
-        self.is_supernet = False # skip sample
+
+        self.is_supernet = False  # skip sample
 
         self.norm_training = norm_training
 
@@ -185,6 +186,5 @@ class HYBRIDNAS(BaseAlgorithm):
                     module.training = True
 
     def forward_pre_GAP(self, img, **kwargs):
-        """Directly measure model-complexity from the backbone.
-        """
+        """Directly measure model-complexity from the backbone."""
         return self.architecture.backbone.forward_pre_GAP(img, **kwargs)

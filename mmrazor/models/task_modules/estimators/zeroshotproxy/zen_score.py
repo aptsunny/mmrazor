@@ -1,6 +1,8 @@
+# Copyright (c) OpenMMLab. All rights reserved.
+import numpy as np
 import torch
 from torch import nn
-import numpy as np
+
 
 def network_weight_gaussian_init(net: nn.Module):
     with torch.no_grad():
@@ -21,7 +23,14 @@ def network_weight_gaussian_init(net: nn.Module):
 
     return net
 
-def compute_zen_score(model, batch_size, device, resolution, repeat=1, mixup_gamma=1e-2, fp16=False):
+
+def compute_zen_score(model,
+                      batch_size,
+                      device,
+                      resolution,
+                      repeat=1,
+                      mixup_gamma=1e-2,
+                      fp16=False):
     info = {}
     nas_score_list = []
     # debug
@@ -45,12 +54,15 @@ def compute_zen_score(model, batch_size, device, resolution, repeat=1, mixup_gam
             # input = torch.randn(size=[batch_size, 3, resolution, resolution], device=device, dtype=dtype)
             # input2 = torch.randn(size=[batch_size, 3, resolution, resolution], device=device, dtype=dtype)
             if device == 'cuda':
-                input = torch.randn(size=[batch_size, 3, resolution, resolution]).cuda()
-                input2 = torch.randn(size=[batch_size, 3, resolution, resolution]).cuda()
+                input = torch.randn(
+                    size=[batch_size, 3, resolution, resolution]).cuda()
+                input2 = torch.randn(
+                    size=[batch_size, 3, resolution, resolution]).cuda()
             mixup_input = input + mixup_gamma * input2
             output = model.forward_pre_GAP(input)
             mixup_output = model.forward_pre_GAP(mixup_input)
-            nas_score = torch.sum(torch.abs(output - mixup_output), dim=[1, 2, 3])
+            nas_score = torch.sum(
+                torch.abs(output - mixup_output), dim=[1, 2, 3])
             nas_score = torch.mean(nas_score)
 
             # compute BN scaling
@@ -74,6 +86,7 @@ def compute_zen_score(model, batch_size, device, resolution, repeat=1, mixup_gam
 
     return info['avg_nas_score']
 
+
 # def parse_cmd_options(argv):
 #     parser = argparse.ArgumentParser()
 #     parser.add_argument('--batch_size', type=int, default=16, help='number of instances in one mini-batch.')
@@ -92,7 +105,6 @@ def compute_zen_score(model, batch_size, device, resolution, repeat=1, mixup_gam
 #     the_model = ModelLoader.get_model(opt, sys.argv)
 #     if args.gpu is not None:
 #         the_model = the_model.cuda(args.gpu)
-
 
 #     start_timer = time.time()
 #     info = compute_nas_score(gpu=args.gpu, model=the_model, mixup_gamma=args.mixup_gamma,

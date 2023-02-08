@@ -3,7 +3,9 @@ from typing import Dict, Optional, Tuple, Union
 
 from mmrazor.registry import TASK_UTILS
 from .base_estimator import BaseEstimator
-from .zeroshotproxy import compute_zen_score, compute_NTK_score, compute_syncflow_score, compute_gradnorm_score, compute_naswot_score
+from .zeroshotproxy import (compute_gradnorm_score, compute_naswot_score,
+                            compute_NTK_score, compute_syncflow_score,
+                            compute_zen_score)
 
 
 @TASK_UTILS.register_module()
@@ -21,14 +23,19 @@ class TrainFreeEstimator(BaseEstimator):
         elif self.metric == 'TE-NAS':
             the_nas_core = compute_NTK_score(model, self.batch_size, **kwargs)
         elif self.metric == 'xd':
-            the_nas_core = compute_syncflow_score(model, self.batch_size, **kwargs)
+            the_nas_core = compute_syncflow_score(model, self.batch_size,
+                                                  **kwargs)
         elif self.metric == 'GradNorm':
-            the_nas_core = compute_gradnorm_score(model, self.batch_size, **kwargs)
+            the_nas_core = compute_gradnorm_score(model, self.batch_size,
+                                                  **kwargs)
         elif self.metric == 'NASWOT':
-            the_nas_core = compute_naswot_score(model, self.batch_size, **kwargs)
+            the_nas_core = compute_naswot_score(model, self.batch_size,
+                                                **kwargs)
         else:
-            raise NotImplementedError(f'compute {self.metric} score not supported.')
+            raise NotImplementedError(
+                f'compute {self.metric} score not supported.')
         return the_nas_core
+
 
 """
 import torch

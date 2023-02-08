@@ -1,18 +1,18 @@
-'''
-https://github.com/BayesWatch/nas-without-training
-'''
+# Copyright (c) OpenMMLab. All rights reserved.
+"""https://github.com/BayesWatch/nas-without-training."""
 
+# from PlainNet import basic_blocks
+# from mmrazor.models.architectures.backbones.PlainNet.basic_blocks import RELU
+# import global_utils, argparse, time
+import argparse
+import time
 
-
+import numpy as np
 # import os, sys, time
 # sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import torch
 from torch import nn
-import numpy as np
-# from PlainNet import basic_blocks
-# from mmrazor.models.architectures.backbones.PlainNet.basic_blocks import RELU
-# import global_utils, argparse, time
-import argparse, time
+
 
 def network_weight_gaussian_init(net: nn.Module):
     with torch.no_grad():
@@ -33,9 +33,11 @@ def network_weight_gaussian_init(net: nn.Module):
 
     return net
 
+
 def logdet(K):
     s, ld = np.linalg.slogdet(K)
     return ld
+
 
 def get_batch_jacobian(net, x):
     net.zero_grad()
@@ -45,6 +47,7 @@ def get_batch_jacobian(net, x):
     jacob = x.grad.detach()
     # return jacob, target.detach(), y.detach()
     return jacob, y.detach()
+
 
 def compute_naswot_score(model, batch_size, gpu, resolution):
     if gpu is not None:
@@ -74,7 +77,6 @@ def compute_naswot_score(model, batch_size, gpu, resolution):
             print(model)
             raise err
 
-
     def counting_backward_hook(module, inp, out):
         module.visited_backwards = True
 
@@ -95,32 +97,43 @@ def compute_naswot_score(model, batch_size, gpu, resolution):
     return float(score)
 
 
-
 def parse_cmd_options(argv):
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batch_size', type=int, default=16, help='number of instances in one mini-batch.')
-    parser.add_argument('--input_image_size', type=int, default=None,
-                        help='resolution of input image, usually 32 for CIFAR and 224 for ImageNet.')
+    parser.add_argument(
+        '--batch_size',
+        type=int,
+        default=16,
+        help='number of instances in one mini-batch.')
+    parser.add_argument(
+        '--input_image_size',
+        type=int,
+        default=None,
+        help=
+        'resolution of input image, usually 32 for CIFAR and 224 for ImageNet.'
+    )
     parser.add_argument('--repeat_times', type=int, default=32)
     parser.add_argument('--gpu', type=int, default=None)
     module_opt, _ = parser.parse_known_args(argv)
     return module_opt
 
-if __name__ == "__main__":
-    import ModelLoader
-    opt = global_utils.parse_cmd_options(sys.argv)
-    args = parse_cmd_options(sys.argv)
-    the_model = ModelLoader.get_model(opt, sys.argv)
-    if args.gpu is not None:
-        the_model = the_model.cuda(args.gpu)
 
+# if __name__ == '__main__':
+#     import ModelLoader
+#     opt = global_utils.parse_cmd_options(sys.argv)
+#     args = parse_cmd_options(sys.argv)
+#     the_model = ModelLoader.get_model(opt, sys.argv)
+#     if args.gpu is not None:
+#         the_model = the_model.cuda(args.gpu)
 
-    start_timer = time.time()
+#     start_timer = time.time()
 
-    for repeat_count in range(args.repeat_times):
-        the_score = compute_naswot_score(gpu=args.gpu, model=the_model,
-                             resolution=args.input_image_size, batch_size=args.batch_size)
+#     for repeat_count in range(args.repeat_times):
+#         the_score = compute_naswot_score(
+#             gpu=args.gpu,
+#             model=the_model,
+#             resolution=args.input_image_size,
+#             batch_size=args.batch_size)
 
-    time_cost = (time.time() - start_timer) / args.repeat_times
+#     time_cost = (time.time() - start_timer) / args.repeat_times
 
-    print(f'NASWOT={the_score:.4g}, time cost={time_cost:.4g} second(s)')
+#     print(f'NASWOT={the_score:.4g}, time cost={time_cost:.4g} second(s)')

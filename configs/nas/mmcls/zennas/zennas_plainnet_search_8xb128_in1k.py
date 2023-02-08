@@ -12,5 +12,5 @@ train_cfg = dict(
     type='mmrazor.ZeroShotLoop',
     max_epochs=480000,
     population_size=512,
-    estimator_cfg=dict(type='mmrazor.TrainFreeEstimator', metric='Zen', batch_size=64)
-)
+    estimator_cfg=dict(
+        type='mmrazor.TrainFreeEstimator', metric='Zen', batch_size=64))

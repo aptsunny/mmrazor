@@ -1,7 +1,4 @@
-'''x
-https://github.com/SamsungLabs/zero-cost-nas
-'''
-
+"""x https://github.com/SamsungLabs/zero-cost-nas."""
 
 # Copyright 2021 Samsung Electronics Co., Ltd.
 #
@@ -18,16 +15,12 @@ https://github.com/SamsungLabs/zero-cost-nas
 # limitations under the License.
 # =============================================================================
 
-
+import numpy as np
 # import os, sys, time
 # sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import torch
 from torch import nn
-import numpy as np
 
-
-
-import torch
 
 def network_weight_gaussian_init(net: nn.Module):
     with torch.no_grad():
@@ -48,6 +41,7 @@ def network_weight_gaussian_init(net: nn.Module):
 
     return net
 
+
 def get_layer_metric_array(net, metric, mode):
     metric_array = []
 
@@ -58,7 +52,6 @@ def get_layer_metric_array(net, metric, mode):
             metric_array.append(metric(layer))
 
     return metric_array
-
 
 
 def compute_synflow_per_weight(net, inputs, mode):
@@ -105,6 +98,7 @@ def compute_synflow_per_weight(net, inputs, mode):
 
     return grads_abs
 
+
 def compute_syncflow_score(model, batch_size, gpu, resolution):
     model.train()
     model.requires_grad_(True)
@@ -120,16 +114,15 @@ def compute_syncflow_score(model, batch_size, gpu, resolution):
     if gpu is not None:
         input = input.cuda(gpu)
 
-    grads_abs_list = compute_synflow_per_weight(net=model, inputs=input, mode='')
+    grads_abs_list = compute_synflow_per_weight(
+        net=model, inputs=input, mode='')
     score = 0
     for grad_abs in grads_abs_list:
         if len(grad_abs.shape) == 4:
-            score += float(torch.mean(torch.sum(grad_abs, dim=[1,2,3])))
+            score += float(torch.mean(torch.sum(grad_abs, dim=[1, 2, 3])))
         elif len(grad_abs.shape) == 2:
             score += float(torch.mean(torch.sum(grad_abs, dim=[1])))
         else:
             raise RuntimeError('!!!')
 
-
     return -1 * score
-

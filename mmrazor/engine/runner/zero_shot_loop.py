@@ -1,14 +1,13 @@
 # Copyright (c) OpenMMLab. All rights reserved.
+import time
 from typing import Dict, List, Optional, Union
 
+import numpy as np
+import torch
 from mmengine.runner import EpochBasedTrainLoop
 from torch.utils.data import DataLoader
 
 from mmrazor.registry import LOOPS, TASK_UTILS
-
-import torch
-import time
-import numpy as np
 
 
 @LOOPS.register_module()
@@ -52,7 +51,8 @@ class ZeroShotLoop(EpochBasedTrainLoop):
         if next(model.parameters()).is_cuda:
             self.device = 'cuda'
         else:
-            raise NotImplementedError('To use cpu to test latency not supported.')
+            raise NotImplementedError(
+                'To use cpu to test latency not supported.')
 
         self.input_image_size = input_image_size
 
@@ -116,7 +116,8 @@ class ZeroShotLoop(EpochBasedTrainLoop):
             min_score = min(self.popu_zero_shot_score_list)
             elasp_time = time.time() - self.start_timer
             self.runner.logger.info(
-                f'loop_count={loop_count}/{self._max_epochs}, max_score={max_score:4g}, min_score={min_score:4g}, time={elasp_time/3600:4g}h')
+                f'loop_count={loop_count}/{self._max_epochs}, max_score={max_score:4g}, min_score={min_score:4g}, time={elasp_time/3600:4g}h'
+            )
             # self.runner.logger.info(f'loop_count={loop_count}/{self.max_epochs}, max_score={max_score:4g}, min_score={min_score:4g}, time={elasp_time/3600:4g}h')
 
         # ----- generate a random structure ----- #
@@ -126,7 +127,8 @@ class ZeroShotLoop(EpochBasedTrainLoop):
 
         # ----- filter structure by restricted condition ----- #
         # max_layers / budget_model_size / budget_flops / budget_latency=0.0001
-        the_nas_core = self.compute_nas_score(random_structure_str, self.device)
+        the_nas_core = self.compute_nas_score(random_structure_str,
+                                              self.device)
 
         self.popu_structure_list.append(random_structure_str)
         self.popu_zero_shot_score_list.append(the_nas_core)
@@ -142,8 +144,8 @@ class ZeroShotLoop(EpochBasedTrainLoop):
     def compute_nas_score(self, random_structure_str, device):
         # compute network zero-shot proxy score
         self.model.mutator.set_choices(random_structure_str)
-        the_nas_core = self.estimator.estimate(model=self.model, device=device,
-                                               resolution=self.input_image_size)
+        the_nas_core = self.estimator.estimate(
+            model=self.model, device=device, resolution=self.input_image_size)
 
         # del the_model
         torch.cuda.empty_cache()

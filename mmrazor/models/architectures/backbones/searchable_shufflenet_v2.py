@@ -20,6 +20,7 @@ except ImportError:
 from mmrazor.models.architectures.dynamic_ops.bricks import DynamicSequential
 from mmrazor.models.mutables import OneShotMutableValue
 
+
 @MODELS.register_module()
 class SearchableShuffleNetV2(BaseBackbone):
     """Based on ShuffleNetV2 backbone.

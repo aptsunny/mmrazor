@@ -1,8 +1,10 @@
+# Copyright (c) OpenMMLab. All rights reserved.
 # import os, sys, time
 # sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import numpy as np
 import torch
 from torch import nn
-import numpy as np
+
 
 def network_weight_gaussian_init(net: nn.Module):
     with torch.no_grad():
@@ -23,12 +25,16 @@ def network_weight_gaussian_init(net: nn.Module):
 
     return net
 
+
 import torch.nn.functional as F
+
+
 def cross_entropy(logit, target):
     # target must be one-hot format!!
     prob_logit = F.log_softmax(logit, dim=1)
     loss = -(target * prob_logit).sum(dim=1).mean()
     return loss
+
 
 def compute_gradnorm_score(model, batch_size, gpu, resolution):
 
@@ -62,10 +68,8 @@ def compute_gradnorm_score(model, batch_size, gpu, resolution):
     with torch.no_grad():
         for p in model.parameters():
             if hasattr(p, 'grad') and p.grad is not None:
-                norm2_sum += torch.norm(p.grad) ** 2
+                norm2_sum += torch.norm(p.grad)**2
 
     grad_norm = float(torch.sqrt(norm2_sum))
 
     return grad_norm
-
-
